@@ -33,7 +33,7 @@ private:
 
 public:
     WAV_fmt_t header;
-    std::vector<uint64_t> data;
+    std::vector<uint64_t> samples;
 
     WAV_t();
     WAV_t(std::string filename);
@@ -56,4 +56,6 @@ public:
     void set_file_path(std::string new_file_path);
 
     int write();
+
+    void print_header();
 };
