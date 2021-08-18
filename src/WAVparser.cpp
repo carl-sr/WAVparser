@@ -115,6 +115,8 @@ void WAV_t::load_data()
 
         smp += (d[i] << ((bytes_per_sample - (i % bytes_per_sample) - 1) * 8));
     }
+    // last sample
+    samples.push_back(smp);
 }
 
 std::vector<uint8_t> &WAV_t::get_fmt()
