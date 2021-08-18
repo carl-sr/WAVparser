@@ -329,6 +329,8 @@ RIFF_t::RIFF_t()
 
 RIFF_t::RIFF_t(std::string filename)
 {
+    m_filepath = filename;
+    
     std::ifstream f(filename, std::ios::binary);
     if (!f.is_open())
         throw std::runtime_error("An error occurred opening the specified RIFF file.");
