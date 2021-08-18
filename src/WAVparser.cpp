@@ -163,18 +163,17 @@ void WAV_t::clear_data()
     write_data();
 }
 
-void WAV_t::set_file_path(std::string new_file_path)
+void WAV_t::set_filepath(std::string new_file_path)
 {
     m_riff.set_filepath(new_file_path);
 }
 
 int WAV_t::write()
 {
-    int bytes_written{0};
     write_data();
     write_fmt();
 
-
+    return m_riff.write();
 }
 
 void WAV_t::print_header()

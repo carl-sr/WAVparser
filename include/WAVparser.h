@@ -53,7 +53,7 @@ public:
 
     void clear_data();
 
-    void set_file_path(std::string new_file_path);
+    void set_filepath(std::string new_file_path);
 
     int write();
 
