@@ -117,22 +117,30 @@ void WAV_t::load_data()
 
 std::vector<uint8_t> &WAV_t::get_fmt()
 {
+    return m_fmt()->get_data();
 }
 
 std::vector<uint8_t> &WAV_t::get_data()
 {
+    return m_data()->get_data();
 }
 
 RIFF_t &WAV_t::get_riff()
 {
+    return m_riff;
 }
 
 int WAV_t::sample_size()
 {
+    return header.bits_per_sample / 8;
 }
 
 int WAV_t::get_sample(int i, int channel)
 {
+    if(channel > (header.num_channels - 1))
+        throw std::runtime_error("Requested access to audio channel that does not exist");
+
+    return samples[i + channel];
 }
 
 uint32_t WAV_t::calculate_byte_rate()
