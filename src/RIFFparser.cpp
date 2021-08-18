@@ -78,7 +78,7 @@ int RIFF_chunk_data_t::write(std::ofstream &f)
     int bytes = 8 + m_data.size();
 
     // padding byte if data is odd sized
-    if (m_size > m_data.size())
+    if (bytes % 2 != 0)
     {
         const char pad{'\0'};
         f.write(&pad, 1);
@@ -190,6 +190,11 @@ void RIFF_chunk_list_t::read(std::ifstream &f, const char *id)
 
     f.read(reinterpret_cast<char *>(&m_size), sizeof(m_size));
     f.read(reinterpret_cast<char *>(&m_form_type), 4);
+
+    // size == 4 means the list contains only the form type
+    // form type has already been read, return
+    if(m_size <= 4)
+        return;
 
     // while bytes from original position until position + chunk size have been read, or file has been read completely
     std::streampos fpos = f.tellg();
