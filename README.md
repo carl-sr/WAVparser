@@ -100,4 +100,6 @@ wav.clear_data();
 
 ## RIFF_t
 
-WAV files are contained within RIFF files. As such, the `WAV_t` class is built using the `RIFF_t` class. Access the underlying `RIFF_t` object using the `get_riff()` method. See the [RIFFparser repository]("https://github.com/rami-hansen/RIFFparser") for more information about reading and manipulating RIFF data.
+WAV files are contained within RIFF files. As such, the `WAV_t` class is built using the `RIFF_t` class. Access the underlying `RIFF_t` object using the `get_riff()` method. See the
+[RIFFparser repository](https://github.com/rami-hansen/RIFFparser)
+for more information about reading and manipulating RIFF data.
