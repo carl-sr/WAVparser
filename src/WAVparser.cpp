@@ -159,10 +159,13 @@ uint16_t WAV_t::calculate_block_align()
 
 void WAV_t::clear_data()
 {
+    samples.clear();
+    write_data();
 }
 
 void WAV_t::set_file_path(std::string new_file_path)
 {
+    m_riff.set_filepath(new_file_path);
 }
 
 int WAV_t::write()
