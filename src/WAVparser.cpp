@@ -38,6 +38,8 @@ RIFF_chunk_data_t *WAV_t::m_fmt()
 int WAV_t::write_fmt()
 {
     int bytes_written{0};
+    calculate_byte_rate();
+    calculate_block_align();
 
     // directly write all bytes to a vector
     const uint8_t *fmt_bytes = reinterpret_cast<const uint8_t *>(&header);
@@ -145,10 +147,14 @@ int WAV_t::get_sample(int i, int channel)
 
 uint32_t WAV_t::calculate_byte_rate()
 {
+    header.byte_rate = header.sample_rate * header.num_channels * sample_size();
+    return header.byte_rate;
 }
 
 uint16_t WAV_t::calculate_block_align()
 {
+    header.block_align = header.num_channels * sample_size();
+    return header.block_align;
 }
 
 void WAV_t::clear_data()
