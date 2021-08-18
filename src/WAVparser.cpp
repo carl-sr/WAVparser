@@ -37,10 +37,55 @@ RIFF_chunk_data_t *WAV_t::m_fmt()
 
 int WAV_t::write_fmt()
 {
+    int bytes_written{0};
+
+    // directly write all bytes to a vector
+    const uint8_t *fmt_bytes = reinterpret_cast<const uint8_t *>(&header);
+    std::vector<uint8_t> bytes(16, 0);
+    memcpy(&bytes.front(), fmt_bytes, 16);
+    bytes_written += 16;
+
+    // add extra params if they exist
+
+    header.extra_params_size = header.extra_params.size();
+    if(header.extra_params_size > 0)
+    {
+        bytes.push_back(reinterpret_cast<const uint8_t *>(&header.extra_params_size)[0]);
+        bytes.push_back(reinterpret_cast<const uint8_t *>(&header.extra_params_size)[1]);
+        bytes.insert(bytes.end(), header.extra_params.begin(), header.extra_params.end());
+        bytes_written += 2 + header.extra_params_size;
+    }
+
+    // set new fmt data
+    m_fmt()->set_data(bytes);
+
+    return bytes_written;
 }
 
 int WAV_t::write_data()
 {
+    int bytes_written{0};
+
+    // determine size of each sample
+    int bytes_per_sample = header.bits_per_sample / 8;
+
+    std::vector<uint8_t> bytes;
+    bytes.reserve(bytes_per_sample * samples.size());
+
+    for(auto i : samples)
+    {
+        for(int b = 0; b < bytes_per_sample; b++)
+        {
+            // get one byte out of each sample
+            // shift to get each byte out of the uint64_t and mask with 0xff
+            bytes.push_back((i >> (bytes_per_sample - b - 1) * 8) & 0xff);
+            bytes_written += 1;
+        }
+    }
+
+    m_data()->set_data(bytes);
+
+    return bytes_written;
 }
 
 void WAV_t::load_fmt()
@@ -108,6 +153,11 @@ void WAV_t::set_file_path(std::string new_file_path)
 
 int WAV_t::write()
 {
+    int bytes_written{0};
+    write_data();
+    write_fmt();
+
+
 }
 
 void WAV_t::print_header()
