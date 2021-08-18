@@ -139,7 +139,7 @@ int WAV_t::sample_size()
     return header.bits_per_sample / 8;
 }
 
-int WAV_t::get_sample(int i, int channel)
+uint64_t &WAV_t::get_sample(int i, int channel)
 {
     if(channel > (header.num_channels - 1))
         throw std::runtime_error("Requested access to audio channel that does not exist");

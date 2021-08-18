@@ -28,6 +28,7 @@ private:
     RIFF_chunk_data_t *m_data();
     RIFF_chunk_data_t *m_fmt();
 
+    // write fmt and data sections into m_riff
     int write_fmt();
     int write_data();
 
@@ -46,7 +47,7 @@ public:
     RIFF_t &get_riff();
 
     int sample_size();
-    int get_sample(int i, int channel = 0);
+    uint64_t &get_sample(int i, int channel = 0);
 
     uint32_t calculate_byte_rate();
     uint16_t calculate_block_align();
