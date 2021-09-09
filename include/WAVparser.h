@@ -46,6 +46,11 @@ private:
     // update header information based on samples vector
     void update_header();
 
+    // maps a sample with range [0, 0b1 << n * 8] to [-1.0f, 1.0f]
+    float map_itof(uint64_t value, int bytes, float range);
+    // maps a sample with range [-1.0f, 1.0f] to [0, 0b1 << n * 8]
+    uint64_t map_ftoi(float value, float range, int bytes);
+
     std::vector<std::vector<float>> samples;
     WAV_fmt_t header;
 
@@ -65,7 +70,6 @@ public:
 
     /**
      * Write WAV_t data to the disk at the specified filepath. 
-     * Throws exception if no filepath is specified.
      * @return Number of bytes written
      */
     int write(std::string filepath);

@@ -34,22 +34,29 @@ int WAV_t::write_fmt(RIFF_t &riff)
         bytes_written += 2 + header.extra_params_size;
     }
 
-    // TODO: insert 'fmt ' chunk into riff
+    // insert 'fmt ' chunk into riff
+    riff.get_root_chunk().get_subchunks().push_back(std::make_unique<RIFF_chunk_data_t>("fmt ", bytes));
 
     return bytes_written;
 }
 
 int WAV_t::write_data(RIFF_t &riff)
 {
+    if (samples.size() == 0)
+        return 0;
+
+    reset_channel_lengths();
+
     int bytes_written{0};
 
-    // determine size of each sample
-    int bytes_per_sample = header.bits_per_sample / 8;
-
+    // reserve right amount of space for storing the data
     std::vector<uint8_t> bytes;
-    bytes.reserve(bytes_per_sample * samples.size());
+    bytes.reserve(header.num_channels * samples[0].size());
 
-    // TODO: insert 'data' chunk into riff
+    // TODO: convert samples into bytes
+
+    // insert 'data' chunk into riff
+    riff.get_root_chunk().get_subchunks().push_back(std::make_unique<RIFF_chunk_data_t>("data", bytes));
 
     return bytes_written;
 }
@@ -75,10 +82,14 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
     std::vector<uint8_t> &d = data.get_data();
 
     // determine size for sample vector
-    int bytes_per_sample = header.bits_per_sample / 8;
-    samples.reserve(data.size() / bytes_per_sample);
+    // create channels
+    samples.insert(samples.begin(), header.num_channels, std::vector<float>());
+    // reserve space for samples
+    int samples_per_channel{data.size() / header.num_channels};
+    for (auto i : samples)
+        i.reserve(samples_per_channel);
 
-    // TODO: grab samples
+    // TODO: read byte data into audio channels
 }
 
 // =========== PUBLIC METHODS ===========
@@ -110,8 +121,9 @@ WAV_t::WAV_t(std::string filename)
 int WAV_t::write(std::string filepath)
 {
     RIFF_t riff;
-    write_data(riff);
+    riff.get_root_chunk().set_form_type("WAVE");
     write_fmt(riff);
+    write_data(riff);
     riff.set_filepath(filepath);
 
     return riff.write();
