@@ -5,7 +5,7 @@
 int main(int argc, char *argv[])
 {
     std::cout << "WAVparser" << std::endl;
-    
+
     // Create a WAV_t object from the file 'sample.wav'
     // sample.wav from https://freewavesamples.com/ensoniq-zr-76-01-dope-77-bpm
     WAV_t wav("./sample.wav");
@@ -13,40 +13,35 @@ int main(int argc, char *argv[])
     // quick print header information
     wav.print_header();
 
-    // vector of individual samples is available as the public member samples
-    int sample_count = wav.samples.size();
+    // get the total number of samples (from all channels)
+    int num_samples{0};
+    for (int i = 0; i < wav.num_channels(); i++)
+        num_samples += wav.channel(i).size();
 
-    // header information is also available as a public member of type WAV_fmt_t
-    int byte_rate = wav.header.sample_rate;
-
+    // make sure each channel has an equal number of samples
+    wav.reset_channel_lengths();
+    
     // remove half of the samples
-    wav.samples.erase(wav.samples.begin() + (sample_count / 2), wav.samples.end());
+    int samples_per_channel = wav.channel(0).size();
+    for (int i = 0; i < wav.num_channels(); i++)
+    {
+        std::vector<float> &channel = wav.channel(i);
+        channel.erase(channel.begin(), channel.begin() + samples_per_channel / 2);
+    }
 
     // get a single sample (first sample in channel 0)
-    uint64_t smp = wav.get_sample(0, 0);
+    float sample = wav.channel(0)[0];
 
     // set a single sample (first sample in channel 0)
-    wav.get_sample(0) = 0;
-
-    // set a new filepath
-    wav.set_filepath("./new_wav.wav");
+    wav.channel(0)[0] = 0.0f;
 
     // write the WAV file to disk
-    wav.write();
-
-    // access is also provided to the underlying RIFF structure
-    // https://github.com/rami-hansen/RIFFparser
-    RIFF_t &riff = wav.get_riff();
-
-    // print riff information
-    riff.print();
-
-    // get raw fmt and data
-    std::vector<uint8_t> &fmt = wav.get_fmt();
-    std::vector<uint8_t> &data = wav.get_data();
+    wav.write("half.wav");
 
     // clear the wav file sample data
     wav.clear_data();
+
+    wav.write("empty.wav");
 
     return 0;
 }

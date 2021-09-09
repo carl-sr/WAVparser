@@ -29,31 +29,28 @@ struct WAV_fmt_t
 class WAV_t
 {
 private:
-    RIFF_t m_riff;
-
     // quick access
-    RIFF_chunk_data_t *m_data();
-    RIFF_chunk_data_t *m_fmt();
+    RIFF_chunk_data_t *m_data(RIFF_chunk_list_t &data);
+    RIFF_chunk_data_t *m_fmt(RIFF_chunk_list_t &fmt);
 
     // write fmt and data sections into m_riff
-    int write_fmt();
-    int write_data();
+    int write_fmt(RIFF_t &riff);
+    int write_data(RIFF_t &riff);
 
-public:
-    /**
-     * WAV file header information. Use load_fmt() to load from the RIFF_t
-     * object into the header.
-     * @see load_fmt();
-     */
+    // Load raw byte data from the RIFF_t object into the header
+    void load_fmt(RIFF_chunk_data_t &riff);
+
+    // Load raw byte data from the RIFF_t object into the samples vector.
+    void load_data(RIFF_chunk_data_t &riff);
+
+    // update header information based on samples vector
+    void update_header();
+
+    std::vector<std::vector<float>> samples;
     WAV_fmt_t header;
 
-    /**
-     * Raw samples. Use load_data() to load from the RIFF_t 
-     * object into the header.
-     * @see load_samples()
-     */
-    std::vector<uint64_t> samples;
 
+public:
     /**
      * Construct an empty WAV file. Contains no samples and 
      * default header data.
@@ -67,56 +64,46 @@ public:
     WAV_t(std::string filename);
 
     /**
-     * Load raw byte data from the RIFF_t object into the header.
+     * Write WAV_t data to the disk at the specified filepath. 
+     * Throws exception if no filepath is specified.
+     * @return Number of bytes written
      */
-    void load_fmt();
+    int write(std::string filepath);
+
+    // =========== METHODS FOR HEADER INFORMATION ===========
 
     /**
-     * Load raw byte data from the RIFF_t object into the samples
-     * vector.
+     * Get the current sample rate of the WAV data.
      */
-    void load_data();
+    uint16_t sample_rate() const;
 
     /**
-     * Get the raw 'fmt ' data contained in the RIFF_t object. 
-     * Changes will not be transferred into the WAV_t object. 
-     * Use load_fmt() to transfer from the RIFF_t object. 
-     * @return Reference to raw byte data. 
-     * @see load_fmt()
+     * Set a new sample rate for the WAV data.
+     * @param new_rate The new sample rate.
      */
-    std::vector<uint8_t> &get_fmt();
+    void set_sample_rate(uint16_t new_rate);
 
     /**
-     * Get the raw 'data' data contained in the RIFF_t object. 
-     * Changes will not be transferred into the WAV_t object. 
-     * Use load_data() to transfer from the RIFF_t object. 
-     * @return Reference to raw byte data. 
-     * @see load_data()
+     * Get the size in bytes of a sample when written.
      */
-    std::vector<uint8_t> &get_data();
+    int sample_size() const;
 
     /**
-     * Get the underlying RIFF_t data.
-     * @return Reference to the RIFF_t object.
+     * Set the size in bytes of a sample when written.
+     * @param new_size The new size of a sample.
      */
-    RIFF_t &get_riff();
+    void set_sample_size(int new_size);
 
     /**
-     * @return The number of bytes in a single sample.
+     * Get the vector containing byte data for extra parameters. 
+     * Extra parameters are not parsed by the object.
      */
-    int sample_size();
+    std::vector<uint8_t> &extra_params();
 
     /**
-     * Get a specific individual sample.
-     * @param i The index of the sample to grab
-     * @param channel The channel to grab from (default to 0). Requesting a 
-     * channel that does not exist will throw an exception. Samples are stored 
-     * physically in uint64_t but may be a different logical size. Use 
-     * sample_size() to find the true size of a single sample.
-     * @see sample_size()
-     * @return Reference to the requested sample.
+     * Quickly print header information
      */
-    uint64_t &get_sample(int i, int channel = 0);
+    void print_header();
 
     /**
      * Helper function to set header byte rate. Generally only used internally but can be useful to do 
@@ -132,29 +119,46 @@ public:
      */
     uint16_t calculate_block_align();
 
+    // =========== METHODS FOR SAMPLE DATA ===========
+
     /**
-     * Clear all sample data from the file. Also flushes changes to the RIFF_t object.
+     * Get the current number of audio channels.
+     */
+    uint16_t num_channels() const;
+
+    /**
+     * Get channel data.
+     * @param i The channel number to grab
+     */
+    std::vector<float> &channel(int i);
+
+    /**
+     * Add an audio channel.
+     * @returns Reference to the newly created audio channel
+     */
+    std::vector<float> &add_channel();
+
+    /**
+     * Remove an audio channel.
+     * @param i The index of the channel to remove
+     */
+    void remove_channel(int i);
+
+    /**
+     * Swap two audio channels.
+     * @param a First channel to swap.
+     * @param b Second channel to swap.
+     */
+    void swap_channels(int a, int b);
+
+    /**
+     * Clear all sample data from the file.
      */
     void clear_data();
 
     /**
-     * Set the file path. This has no changes on the underlying data. The 
-     * location of the file will be changed when write() is called.
-     * @param new_file_path New location for the WAV file.
-     * @see write()
+     * Set the length of all channels to the length of the longest channel.
+     * @param fill The value to append to short channels.
      */
-    void set_filepath(std::string new_file_path);
-
-    /**
-     * Write WAV_t data to the disk at the specified filepath. 
-     * Throws exception if no filepath is specified. 
-     * @see set_filepath()
-     * @return Number of bytes written
-     */
-    int write();
-
-    /**
-     * Quickly print header information
-     */
-    void print_header();
+    void reset_channel_lengths(float fill = 0.0f);
 };

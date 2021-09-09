@@ -1,41 +1,17 @@
 #include "WAVparser.h"
 
-WAV_t::WAV_t()
+// =========== PIRVATE METHODS ===========
+RIFF_chunk_data_t *WAV_t::m_data(RIFF_chunk_list_t &riff)
 {
-    m_riff.get_root_chunk().set_form_type("WAVE");
-
-    // add format and data chunks
-    std::vector<std::unique_ptr<RIFF_chunk_t>> &chunks = m_riff.get_root_chunk().get_subchunks();
-    chunks.push_back(std::make_unique<RIFF_chunk_data_t>("fmt "));
-    chunks.push_back(std::make_unique<RIFF_chunk_data_t>("data"));
+    return reinterpret_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("data"));
 }
 
-WAV_t::WAV_t(std::string filename) : m_riff(filename)
+RIFF_chunk_data_t *WAV_t::m_fmt(RIFF_chunk_list_t &riff)
 {
-    if (strcmp(m_riff.get_root_chunk().get_form_type(), "WAVE") != 0)
-        throw std::runtime_error("File is not a valid WAVE file.");
-
-    if (!m_riff.exists_chunk_with_id("fmt "))
-        throw std::runtime_error("File does not have a 'fmt ' chunk.");
-
-    if (!m_riff.exists_chunk_with_id("data"))
-        throw std::runtime_error("File does not have a 'data' chunk.");
-
-    load_fmt();
-    load_data();
+    return reinterpret_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("fmt "));
 }
 
-RIFF_chunk_data_t *WAV_t::m_data()
-{
-    return reinterpret_cast<RIFF_chunk_data_t *>(m_riff.get_chunk_with_id("data"));
-}
-
-RIFF_chunk_data_t *WAV_t::m_fmt()
-{
-    return reinterpret_cast<RIFF_chunk_data_t *>(m_riff.get_chunk_with_id("fmt "));
-}
-
-int WAV_t::write_fmt()
+int WAV_t::write_fmt(RIFF_t &riff)
 {
     int bytes_written{0};
     calculate_byte_rate();
@@ -50,7 +26,7 @@ int WAV_t::write_fmt()
     // add extra params if they exist
 
     header.extra_params_size = header.extra_params.size();
-    if(header.extra_params_size > 0)
+    if (header.extra_params_size > 0)
     {
         bytes.push_back(reinterpret_cast<const uint8_t *>(&header.extra_params_size)[0]);
         bytes.push_back(reinterpret_cast<const uint8_t *>(&header.extra_params_size)[1]);
@@ -58,13 +34,12 @@ int WAV_t::write_fmt()
         bytes_written += 2 + header.extra_params_size;
     }
 
-    // set new fmt data
-    m_fmt()->set_data(bytes);
+    // TODO: insert 'fmt ' chunk into riff
 
     return bytes_written;
 }
 
-int WAV_t::write_data()
+int WAV_t::write_data(RIFF_t &riff)
 {
     int bytes_written{0};
 
@@ -74,113 +49,102 @@ int WAV_t::write_data()
     std::vector<uint8_t> bytes;
     bytes.reserve(bytes_per_sample * samples.size());
 
-    for(auto i : samples)
-    {
-        for(int b = 0; b < bytes_per_sample; b++)
-        {
-            // get one byte out of each sample
-            // shift to get each byte out of the uint64_t and mask with 0xff
-            bytes.push_back((i >> (bytes_per_sample - b - 1) * 8) & 0xff);
-            bytes_written += 1;
-        }
-    }
-
-    m_data()->set_data(bytes);
+    // TODO: insert 'data' chunk into riff
 
     return bytes_written;
 }
 
-void WAV_t::load_fmt()
+void WAV_t::load_fmt(RIFF_chunk_data_t &fmt)
 {
-    memcpy(reinterpret_cast<uint8_t *>(&header), &m_fmt()->get_data().front(), m_fmt()->size());
+    memcpy(reinterpret_cast<uint8_t *>(&header), &fmt.get_data().front(), fmt.size());
+
+    // load extra params if present
+    if (fmt.get_data().size() > 16)
+    {
+        // grab size of extra params - magic value 16: end of normal header data
+        mempcpy(reinterpret_cast<uint8_t *>(&header.extra_params_size), &fmt.get_data()[16], 2);
+
+        // grab extra params - magic value 18: end of normal header data and size of extra params
+        header.extra_params.reserve(header.extra_params_size);
+        header.extra_params.insert(header.extra_params.end(), fmt.get_data().begin() + 18, fmt.get_data().end());
+    }
 }
 
-void WAV_t::load_data()
+void WAV_t::load_data(RIFF_chunk_data_t &data)
 {
-    std::vector<uint8_t> &d = m_data()->get_data();
+    std::vector<uint8_t> &d = data.get_data();
 
     // determine size for sample vector
     int bytes_per_sample = header.bits_per_sample / 8;
-    samples.reserve(m_data()->size() / bytes_per_sample);
+    samples.reserve(data.size() / bytes_per_sample);
 
-    uint64_t smp{0};
-    for (int i = 0; i < d.size(); i++)
-    {
-
-        if (i % bytes_per_sample == 0 && i != 0)
-        {
-            samples.push_back(smp);
-            smp = 0;
-        }
-
-        smp += (d[i] << ((bytes_per_sample - (i % bytes_per_sample) - 1) * 8));
-    }
-    // last sample
-    samples.push_back(smp);
+    // TODO: grab samples
 }
 
-std::vector<uint8_t> &WAV_t::get_fmt()
+// =========== PUBLIC METHODS ===========
+
+WAV_t::WAV_t() : samples(2, std::vector<float>()) {}
+
+WAV_t::WAV_t(std::string filename)
 {
-    return m_fmt()->get_data();
+    RIFF_t riff(filename);
+
+    if (strcmp(riff.get_root_chunk().get_form_type(), "WAVE") != 0)
+        throw std::runtime_error("File is not a valid WAVE file.");
+
+    // WAV file should have a 'fmt ' chunk
+    RIFF_chunk_data_t *fmt_chunk = dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("fmt "));
+    if (!fmt_chunk)
+        throw std::runtime_error("File does not have a valid 'fmt ' chunk.");
+
+    // WAV file should have a 'data' chunk
+    RIFF_chunk_data_t *data_chunk = dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("data"));
+    if (!data_chunk)
+        throw std::runtime_error("File does not have a valid 'data' chunk.");
+
+    // load required chunk data
+    load_fmt(*fmt_chunk);
+    load_data(*data_chunk);
 }
 
-std::vector<uint8_t> &WAV_t::get_data()
+int WAV_t::write(std::string filepath)
 {
-    return m_data()->get_data();
-}
+    RIFF_t riff;
+    write_data(riff);
+    write_fmt(riff);
+    riff.set_filepath(filepath);
 
-RIFF_t &WAV_t::get_riff()
+    return riff.write();
+}
+// =========== METHODS FOR HEADER INFORMATION ===========
+
+uint16_t WAV_t::sample_rate() const
 {
-    return m_riff;
+    return header.sample_rate;
 }
 
-int WAV_t::sample_size()
+void WAV_t::set_sample_rate(uint16_t new_rate)
+{
+    header.sample_rate = new_rate;
+}
+
+int WAV_t::sample_size() const
 {
     return header.bits_per_sample / 8;
 }
 
-uint64_t &WAV_t::get_sample(int i, int channel)
+void WAV_t::set_sample_size(int new_size)
 {
-    if(channel > (header.num_channels - 1))
-        throw std::runtime_error("Requested access to audio channel that does not exist");
-
-    return samples[i + channel];
+    header.bits_per_sample = new_size * 8;
 }
 
-uint32_t WAV_t::calculate_byte_rate()
+std::vector<uint8_t> &WAV_t::extra_params()
 {
-    header.byte_rate = header.sample_rate * header.num_channels * sample_size();
-    return header.byte_rate;
-}
-
-uint16_t WAV_t::calculate_block_align()
-{
-    header.block_align = header.num_channels * sample_size();
-    return header.block_align;
-}
-
-void WAV_t::clear_data()
-{
-    samples.clear();
-    write_data();
-}
-
-void WAV_t::set_filepath(std::string new_file_path)
-{
-    m_riff.set_filepath(new_file_path);
-}
-
-int WAV_t::write()
-{
-    write_data();
-    write_fmt();
-
-    return m_riff.write();
+    return header.extra_params;
 }
 
 void WAV_t::print_header()
 {
-    printf("*** %s header ***\n", m_riff.get_filepath().c_str());
     printf("audio format: %d\n", header.audio_format);
     printf("num channels: %d\n", header.num_channels);
     printf("sample rate %d\n", header.sample_rate);
@@ -195,4 +159,61 @@ void WAV_t::print_header()
             printf(" %02x", i);
         putchar('\n');
     }
+}
+
+uint32_t WAV_t::calculate_byte_rate()
+{
+    header.byte_rate = header.sample_rate * header.num_channels * sample_size();
+    return header.byte_rate;
+}
+
+uint16_t WAV_t::calculate_block_align()
+{
+    header.block_align = header.num_channels * sample_size();
+    return header.block_align;
+}
+// =========== METHODS FOR SAMPLE DATA ===========
+
+uint16_t WAV_t::num_channels() const
+{
+    return samples.size();
+}
+
+std::vector<float> &WAV_t::channel(int i)
+{
+    return samples[i];
+}
+std::vector<float> &WAV_t::add_channel()
+{
+    samples.push_back({});
+    header.num_channels++;
+    return samples.back();
+}
+void WAV_t::remove_channel(int i)
+{
+    samples.erase(samples.begin() + i);
+    header.num_channels--;
+}
+
+void WAV_t::swap_channels(int a, int b)
+{
+    std::swap(samples[a], samples[b]);
+}
+
+void WAV_t::clear_data()
+{
+    samples = std::vector<std::vector<float>>(header.num_channels, std::vector<float>());
+}
+
+void WAV_t::reset_channel_lengths(float fill)
+{
+    // find the length of the longest sample vector
+    int len{0};
+    for (auto i : samples)
+        len = std::max(static_cast<int>(i.size()), len);
+
+    // fill the end of each sample vector
+    for (auto i : samples)
+        if (i.size() < len)
+            i.insert(i.end(), fill, len - i.size());
 }
