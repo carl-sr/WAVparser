@@ -57,11 +57,11 @@ private:
     void update_header();
 
     // maps a sample with range [0, 0b1 << n * 8] to [-1.0f, 1.0f]
-    float map_itof(uint64_t value, int bytes, float range);
+    double map_itof(uint64_t value, int bytes, double range);
     // maps a sample with range [-1.0f, 1.0f] to [0, 0b1 << n * 8]
-    uint64_t map_ftoi(float value, float range, int bytes);
+    uint64_t map_ftoi(double value, double range, int bytes);
 
-    std::vector<std::vector<float>> samples;
+    std::vector<std::vector<double>> samples;
     WAV_fmt_t header;
     WAV_encoding encoding {WAV_encoding::signed_32_PCM};
 
@@ -155,13 +155,13 @@ public:
      * Get channel data.
      * @param i The channel number to grab
      */
-    std::vector<float> &channel(int i);
+    std::vector<double> &channel(int i);
 
     /**
      * Add an audio channel.
      * @returns Reference to the newly created audio channel
      */
-    std::vector<float> &add_channel();
+    std::vector<double> &add_channel();
 
     /**
      * Remove an audio channel.
@@ -185,5 +185,5 @@ public:
      * Set the length of all channels to the length of the longest channel.
      * @param fill The value to append to short channels.
      */
-    void reset_channel_lengths(float fill = 0.0f);
+    void reset_channel_lengths(double fill = 0.0f);
 };

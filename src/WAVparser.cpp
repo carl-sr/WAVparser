@@ -83,7 +83,7 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
 
     // determine size for sample vector
     // create channels
-    samples.insert(samples.begin(), header.num_channels, std::vector<float>());
+    samples.insert(samples.begin(), header.num_channels, std::vector<double>());
     // reserve space for samples
     int samples_per_channel{data.size() / header.num_channels};
     for (auto i : samples)
@@ -94,7 +94,7 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
 
 // =========== PUBLIC METHODS ===========
 
-WAV_t::WAV_t() : samples(2, std::vector<float>()) {}
+WAV_t::WAV_t() : samples(2, std::vector<double>()) {}
 
 WAV_t::WAV_t(std::string filename)
 {
@@ -201,11 +201,11 @@ uint16_t WAV_t::num_channels() const
     return samples.size();
 }
 
-std::vector<float> &WAV_t::channel(int i)
+std::vector<double> &WAV_t::channel(int i)
 {
     return samples[i];
 }
-std::vector<float> &WAV_t::add_channel()
+std::vector<double> &WAV_t::add_channel()
 {
     samples.push_back({});
     header.num_channels++;
@@ -224,10 +224,10 @@ void WAV_t::swap_channels(int a, int b)
 
 void WAV_t::clear_data()
 {
-    samples = std::vector<std::vector<float>>(header.num_channels, std::vector<float>());
+    samples = std::vector<std::vector<double>>(header.num_channels, std::vector<double>());
 }
 
-void WAV_t::reset_channel_lengths(float fill)
+void WAV_t::reset_channel_lengths(double fill)
 {
     // find the length of the longest sample vector
     int len{0};
