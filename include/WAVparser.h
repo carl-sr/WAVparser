@@ -23,6 +23,16 @@ struct WAV_fmt_t
     std::vector<uint8_t> extra_params; // generally don't exist
 };
 
+enum class WAV_encoding
+{
+    signed_16_PCM,
+    signed_24_PCM,
+    signed_32_PCM,
+    unsigned_8_PCM,
+    float_32,
+    float_64
+};
+
 /**
  * Class for storing and manipulating WAV file data.
  */
@@ -53,7 +63,7 @@ private:
 
     std::vector<std::vector<float>> samples;
     WAV_fmt_t header;
-
+    WAV_encoding encoding {WAV_encoding::signed_32_PCM};
 
 public:
     /**
@@ -122,6 +132,17 @@ public:
      * @return The new calculated block align.
      */
     uint16_t calculate_block_align();
+
+    /**
+     * Get the current encoding type of the WAV data.
+     */
+    WAV_encoding get_encoding() const;
+
+    /**
+     * Set a new encoding type for the WAV data
+     * @param new_encoding The encoding type to use during the next write.
+     */
+    void set_encoding(WAV_encoding new_encoding);
 
     // =========== METHODS FOR SAMPLE DATA ===========
 

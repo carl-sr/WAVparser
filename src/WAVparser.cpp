@@ -184,6 +184,16 @@ uint16_t WAV_t::calculate_block_align()
     header.block_align = header.num_channels * sample_size();
     return header.block_align;
 }
+
+WAV_encoding WAV_t::get_encoding() const
+{
+    return encoding;
+}
+
+void WAV_t::set_encoding(WAV_encoding new_encoding)
+{
+    encoding = new_encoding;
+}
 // =========== METHODS FOR SAMPLE DATA ===========
 
 uint16_t WAV_t::num_channels() const
