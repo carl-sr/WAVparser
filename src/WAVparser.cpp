@@ -53,9 +53,31 @@ int WAV_t::write_data(RIFF_t &riff)
     std::vector<uint8_t> bytes;
     bytes.reserve(header.num_channels * samples[0].size());
 
-    // TODO: convert samples into bytes
+    switch (encoding)
+    {
+    case WAV_encoding::signed_16_PCM:
+        write_sample_buffer_i16(bytes);
+        break;
+    case WAV_encoding::signed_24_PCM:
+        write_sample_buffer_i24(bytes);
+        break;
+    case WAV_encoding::signed_32_PCM:
+        write_sample_buffer_i32(bytes);
+        break;
+    case WAV_encoding::unsigned_8_PCM:
+        write_sample_buffer_u8(bytes);
+        break;
+    case WAV_encoding::float_32:
+        write_sample_buffer_f32(bytes);
+        break;
+    case WAV_encoding::float_64:
+        write_sample_buffer_f64(bytes);
+        break;
+    default:
+        throw std::runtime_error("Unsupported audio encoding format.");
+    }
 
-    // insert 'data' chunk into riff
+    // insert data
     riff.get_root_chunk().get_subchunks().push_back(std::make_unique<RIFF_chunk_data_t>("data", bytes));
 
     return bytes_written;
@@ -178,7 +200,7 @@ void WAV_t::load_sample_buffer_i24(std::vector<uint8_t> &bytes)
     for (int i = 0; i < total_samples; i += 3)
     {
         int32_t smp = buffer[i] + (buffer[i + 1] << 8) + (buffer[i + 2] << 16);
-        
+
         // 24i max:  0x7fffff
         // 24i min: -0x800000
         double new_value = value_map<int32_t, double>(smp, -0x800000, 0x7fffff, -1.0, 1.0);
@@ -234,6 +256,51 @@ To WAV_t::value_map(From value, From from_min, From from_max, To to_min, To to_m
         return to_min;
 
     return static_cast<To>((d_value - d_from_min) * (d_to_max - d_to_min) / (d_from_max - d_from_min) + d_to_min);
+}
+
+template <class T>
+void WAV_t::write_sample_buffer_int(std::vector<uint8_t> &bytes)
+{
+}
+
+void WAV_t::write_sample_buffer_i16(std::vector<uint8_t> &bytes)
+{
+    printf("write i16\n");
+    write_sample_buffer_int<uint16_t>(bytes);
+}
+
+void WAV_t::write_sample_buffer_i24(std::vector<uint8_t> &bytes)
+{
+    printf("write i24\n");
+}
+
+void WAV_t::write_sample_buffer_i32(std::vector<uint8_t> &bytes)
+{
+    printf("write i32\n");
+    write_sample_buffer_int<int32_t>(bytes);
+}
+
+void WAV_t::write_sample_buffer_u8(std::vector<uint8_t> &bytes)
+{
+    printf("write u8\n");
+    write_sample_buffer_int<uint8_t>(bytes);
+}
+
+template <class T>
+void WAV_t::write_sample_buffer_float(std::vector<uint8_t> &bytes)
+{
+}
+
+void WAV_t::write_sample_buffer_f32(std::vector<uint8_t> &bytes)
+{
+    printf("write f32\n");
+    write_sample_buffer_float<float>(bytes);
+}
+
+void WAV_t::write_sample_buffer_f64(std::vector<uint8_t> &bytes)
+{
+    printf("write f64\n");
+    write_sample_buffer_float<double>(bytes);
 }
 
 // =========== PUBLIC METHODS ===========
