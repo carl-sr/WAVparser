@@ -170,7 +170,20 @@ void WAV_t::load_sample_buffer_i16(std::vector<uint8_t> &bytes)
 
 void WAV_t::load_sample_buffer_i24(std::vector<uint8_t> &bytes)
 {
-    // TODO
+    uint8_t *buffer = reinterpret_cast<uint8_t *>(&bytes.front());
+    int channel_counter = 0;
+    int total_samples = bytes.size() / 3; // size of 24 bit integer = 3
+
+    // assign each sample to a channel
+    for (int i = 0; i < total_samples; i += 3)
+    {
+        int32_t smp = buffer[i] + (buffer[i + 1] << 8) + (buffer[i + 2] << 16);
+        
+        // 24i max:  0x7fffff
+        // 24i min: -0x800000
+        double new_value = value_map<int32_t, double>(smp, -0x800000, 0x7fffff, -1.0, 1.0);
+        samples[channel_counter++ % header.num_channels].push_back(new_value);
+    }
 }
 
 void WAV_t::load_sample_buffer_i32(std::vector<uint8_t> &bytes)
@@ -225,7 +238,8 @@ To WAV_t::value_map(From value, From from_min, From from_max, To to_min, To to_m
 
 // =========== PUBLIC METHODS ===========
 
-WAV_t::WAV_t() : samples(2, std::vector<double>()) {
+WAV_t::WAV_t() : samples(2, std::vector<double>())
+{
     encoding = WAV_encoding::signed_32_PCM;
 }
 
