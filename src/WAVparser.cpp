@@ -223,7 +223,7 @@ void WAV_t::load_sample_buffer_float(std::vector<uint8_t> &bytes)
 {
     T *buffer = reinterpret_cast<T *>(&bytes.front());
     int channel_counter = 0;
-    int total_samples = bytes.size() / sizeof(float);
+    int total_samples = bytes.size() / sizeof(T);
 
     // assign each sample to a channel
     for (int i = 0; i < total_samples; i++)
