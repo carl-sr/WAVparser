@@ -89,12 +89,145 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
     for (auto i : samples)
         i.reserve(samples_per_channel);
 
-    // TODO: read byte data into audio channels
+    // choose encoding type - none is the default
+    encoding = WAV_encoding::none;
+    if (header.audio_format == 1) // PCM
+    {
+        switch (header.bits_per_sample)
+        {
+        case 8:
+            encoding = WAV_encoding::unsigned_8_PCM;
+            break;
+        case 16:
+            encoding = WAV_encoding::signed_16_PCM;
+            break;
+        case 24:
+            encoding = WAV_encoding::signed_24_PCM;
+            break;
+        case 32:
+            encoding = WAV_encoding::signed_32_PCM;
+            break;
+        }
+    }
+    else if (header.audio_format == 3) // float
+    {
+        switch (header.bits_per_sample)
+        {
+        case 32:
+            encoding = WAV_encoding::float_32;
+            break;
+        case 64:
+            encoding = WAV_encoding::float_64;
+            break;
+        }
+    }
+
+    // choose read function based on encoding type
+    switch (encoding)
+    {
+    case WAV_encoding::signed_16_PCM:
+        load_sample_buffer_i16(d);
+        break;
+    case WAV_encoding::signed_24_PCM:
+        load_sample_buffer_i24(d);
+        break;
+    case WAV_encoding::signed_32_PCM:
+        load_sample_buffer_i32(d);
+        break;
+    case WAV_encoding::unsigned_8_PCM:
+        load_sample_buffer_u8(d);
+        break;
+    case WAV_encoding::float_32:
+        load_sample_buffer_f32(d);
+        break;
+    case WAV_encoding::float_64:
+        load_sample_buffer_f64(d);
+        break;
+    default:
+        throw std::runtime_error("Unsupported audio encoding format.");
+    }
+}
+
+template <class T>
+void WAV_t::load_sample_buffer_int(std::vector<uint8_t> &bytes)
+{
+    T *buffer = reinterpret_cast<T *>(&bytes.front());
+    int channel_counter = 0;
+    int total_samples = bytes.size() / sizeof(T);
+
+    // assign each sample to a channel
+    for (int i = 0; i < total_samples; i++)
+    {
+        double new_value = value_map<T, double>(buffer[i], std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), -1.0, 1.0);
+        samples[channel_counter++ % header.num_channels].push_back(new_value);
+    }
+}
+
+void WAV_t::load_sample_buffer_i16(std::vector<uint8_t> &bytes)
+{
+    load_sample_buffer_int<int16_t>(bytes);
+}
+
+void WAV_t::load_sample_buffer_i24(std::vector<uint8_t> &bytes)
+{
+    // TODO
+}
+
+void WAV_t::load_sample_buffer_i32(std::vector<uint8_t> &bytes)
+{
+    load_sample_buffer_int<int32_t>(bytes);
+}
+
+void WAV_t::load_sample_buffer_u8(std::vector<uint8_t> &bytes)
+{
+    load_sample_buffer_int<uint8_t>(bytes);
+}
+
+template <class T>
+void WAV_t::load_sample_buffer_float(std::vector<uint8_t> &bytes)
+{
+    T *buffer = reinterpret_cast<T *>(&bytes.front());
+    int channel_counter = 0;
+    int total_samples = bytes.size() / sizeof(float);
+
+    // assign each sample to a channel
+    for (int i = 0; i < total_samples; i++)
+        samples[channel_counter++ % header.num_channels].push_back(static_cast<double>(buffer[i]));
+}
+
+void WAV_t::load_sample_buffer_f32(std::vector<uint8_t> &bytes)
+{
+    load_sample_buffer_float<float>(bytes);
+}
+
+void WAV_t::load_sample_buffer_f64(std::vector<uint8_t> &bytes)
+{
+    load_sample_buffer_float<double>(bytes);
+}
+
+template <class From, class To>
+To WAV_t::value_map(From value, From from_min, From from_max, To to_min, To to_max)
+{
+    double d_value = static_cast<double>(value);
+    double d_from_min = static_cast<double>(from_min);
+    double d_from_max = static_cast<double>(from_max);
+    double d_to_min = static_cast<double>(to_min);
+    double d_to_max = static_cast<double>(to_max);
+
+    if (d_value >= d_from_max)
+        return to_max;
+
+    if (d_value <= d_from_min)
+        return to_min;
+
+    return static_cast<To>((d_value - d_from_min) * (d_to_max - d_to_min) / (d_from_max - d_from_min) + d_to_min);
 }
 
 // =========== PUBLIC METHODS ===========
 
-WAV_t::WAV_t() : samples(2, std::vector<double>()) {}
+WAV_t::WAV_t() : samples(2, std::vector<double>()) {
+    encoding = WAV_encoding::signed_32_PCM;
+}
 
 WAV_t::WAV_t(std::string filename)
 {

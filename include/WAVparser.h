@@ -1,6 +1,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include <limits>
 
 #include "RIFFparser.h"
 
@@ -30,7 +31,8 @@ enum class WAV_encoding
     signed_32_PCM,
     unsigned_8_PCM,
     float_32,
-    float_64
+    float_64,
+    none
 };
 
 /**
@@ -53,17 +55,30 @@ private:
     // Load raw byte data from the RIFF_t object into the samples vector.
     void load_data(RIFF_chunk_data_t &riff);
 
+    template <typename T>
+    void load_sample_buffer_int(std::vector<uint8_t> &bytes);
+
+    void load_sample_buffer_i16(std::vector<uint8_t> &bytes);
+    void load_sample_buffer_i24(std::vector<uint8_t> &bytes);
+    void load_sample_buffer_i32(std::vector<uint8_t> &bytes);
+    void load_sample_buffer_u8(std::vector<uint8_t> &bytes);
+
+    template <typename T>
+    void load_sample_buffer_float(std::vector<uint8_t> &bytes);
+
+    void load_sample_buffer_f32(std::vector<uint8_t> &bytes);
+    void load_sample_buffer_f64(std::vector<uint8_t> &bytes);
+
     // update header information based on samples vector
     void update_header();
 
-    // maps a sample with range [0, 0b1 << n * 8] to [-1.0f, 1.0f]
-    double map_itof(uint64_t value, int bytes, double range);
-    // maps a sample with range [-1.0f, 1.0f] to [0, 0b1 << n * 8]
-    uint64_t map_ftoi(double value, double range, int bytes);
+    // generic mapping function
+    template <typename From, typename To>
+    To value_map(From value, From from_min, From from_max, To to_min, To to_max);
 
     std::vector<std::vector<double>> samples;
     WAV_fmt_t header;
-    WAV_encoding encoding {WAV_encoding::signed_32_PCM};
+    WAV_encoding encoding{WAV_encoding::none};
 
 public:
     /**
