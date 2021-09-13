@@ -362,6 +362,7 @@ WAV_t::WAV_t(std::string filename)
 
 int WAV_t::write(std::string filepath)
 {
+    update_header();
     RIFF_t riff;
     riff.get_root_chunk().set_form_type("WAVE");
     write_fmt(riff);
@@ -370,6 +371,41 @@ int WAV_t::write(std::string filepath)
 
     return riff.write();
 }
+
+void WAV_t::update_header()
+{
+    header.num_channels = samples.size();
+    switch (encoding)
+    {
+    case WAV_encoding::signed_16_PCM:
+        header.audio_format = 1;
+        header.bits_per_sample = 16;
+        break;
+    case WAV_encoding::signed_24_PCM:
+        header.audio_format = 1;
+        header.bits_per_sample = 24;
+        break;
+    case WAV_encoding::signed_32_PCM:
+        header.audio_format = 1;
+        header.bits_per_sample = 32;
+        break;
+    case WAV_encoding::unsigned_8_PCM:
+        header.audio_format = 1;
+        header.bits_per_sample = 8;
+        break;
+    case WAV_encoding::float_32:
+        header.audio_format = 3;
+        header.bits_per_sample = 32;
+        break;
+    case WAV_encoding::float_64:
+        header.audio_format = 3;
+        header.bits_per_sample = 64;
+        break;
+    }
+    calculate_block_align();
+    calculate_byte_rate();
+}
+
 // =========== METHODS FOR HEADER INFORMATION ===========
 
 uint16_t WAV_t::sample_rate() const
@@ -435,6 +471,7 @@ WAV_encoding WAV_t::get_encoding() const
 void WAV_t::set_encoding(WAV_encoding new_encoding)
 {
     encoding = new_encoding;
+    update_header();
 }
 // =========== METHODS FOR SAMPLE DATA ===========
 
