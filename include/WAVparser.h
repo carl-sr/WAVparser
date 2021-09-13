@@ -60,31 +60,19 @@ private:
     template <typename T>
     void load_sample_buffer_int(std::vector<uint8_t> &bytes);
 
-    void load_sample_buffer_i16(std::vector<uint8_t> &bytes);
     void load_sample_buffer_i24(std::vector<uint8_t> &bytes);
-    void load_sample_buffer_i32(std::vector<uint8_t> &bytes);
-    void load_sample_buffer_u8(std::vector<uint8_t> &bytes);
 
     template <typename T>
     void load_sample_buffer_float(std::vector<uint8_t> &bytes);
-
-    void load_sample_buffer_f32(std::vector<uint8_t> &bytes);
-    void load_sample_buffer_f64(std::vector<uint8_t> &bytes);
 
     // write to riff
     template <typename T>
     void write_sample_buffer_int(std::vector<uint8_t> &bytes);
 
-    void write_sample_buffer_i16(std::vector<uint8_t> &bytes);
     void write_sample_buffer_i24(std::vector<uint8_t> &bytes);
-    void write_sample_buffer_i32(std::vector<uint8_t> &bytes);
-    void write_sample_buffer_u8(std::vector<uint8_t> &bytes);
 
     template <typename T>
     void write_sample_buffer_float(std::vector<uint8_t> &bytes);
-
-    void write_sample_buffer_f32(std::vector<uint8_t> &bytes);
-    void write_sample_buffer_f64(std::vector<uint8_t> &bytes);
 
     // update header information based on samples vector
     void update_header();

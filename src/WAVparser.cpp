@@ -56,25 +56,25 @@ int WAV_t::write_data(RIFF_t &riff)
     switch (encoding)
     {
     case WAV_encoding::signed_16_PCM:
-        write_sample_buffer_i16(bytes);
+        write_sample_buffer_int<int16_t>(bytes);
         break;
     case WAV_encoding::signed_24_PCM:
         write_sample_buffer_i24(bytes);
         break;
     case WAV_encoding::signed_32_PCM:
-        write_sample_buffer_i32(bytes);
+        write_sample_buffer_int<int32_t>(bytes);
         break;
     case WAV_encoding::unsigned_8_PCM:
-        write_sample_buffer_u8(bytes);
+        write_sample_buffer_int<uint8_t>(bytes);
         break;
     case WAV_encoding::float_32:
-        write_sample_buffer_f32(bytes);
+        write_sample_buffer_float<float>(bytes);
         break;
     case WAV_encoding::float_64:
-        write_sample_buffer_f64(bytes);
+        write_sample_buffer_float<double>(bytes);
         break;
     default:
-        throw std::runtime_error("Unsupported audio encoding format.");
+        throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)encoding) + ")");
     }
 
     // insert data
@@ -148,25 +148,25 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
     switch (encoding)
     {
     case WAV_encoding::signed_16_PCM:
-        load_sample_buffer_i16(d);
+        load_sample_buffer_int<int16_t>(d);
         break;
     case WAV_encoding::signed_24_PCM:
         load_sample_buffer_i24(d);
         break;
     case WAV_encoding::signed_32_PCM:
-        load_sample_buffer_i32(d);
+        load_sample_buffer_int<int32_t>(d);
         break;
     case WAV_encoding::unsigned_8_PCM:
-        load_sample_buffer_u8(d);
+        load_sample_buffer_int<uint8_t>(d);
         break;
     case WAV_encoding::float_32:
-        load_sample_buffer_f32(d);
+        load_sample_buffer_float<float>(d);
         break;
     case WAV_encoding::float_64:
-        load_sample_buffer_f64(d);
+        load_sample_buffer_float<double>(d);
         break;
     default:
-        throw std::runtime_error("Unsupported audio encoding format.");
+        throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)encoding) + ")");
     }
 }
 
@@ -183,11 +183,6 @@ void WAV_t::load_sample_buffer_int(std::vector<uint8_t> &bytes)
         double new_value = value_map<T, double>(buffer[i], std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), -1.0, 1.0);
         samples[channel_counter++ % header.num_channels].push_back(new_value);
     }
-}
-
-void WAV_t::load_sample_buffer_i16(std::vector<uint8_t> &bytes)
-{
-    load_sample_buffer_int<int16_t>(bytes);
 }
 
 void WAV_t::load_sample_buffer_i24(std::vector<uint8_t> &bytes)
@@ -208,16 +203,6 @@ void WAV_t::load_sample_buffer_i24(std::vector<uint8_t> &bytes)
     }
 }
 
-void WAV_t::load_sample_buffer_i32(std::vector<uint8_t> &bytes)
-{
-    load_sample_buffer_int<int32_t>(bytes);
-}
-
-void WAV_t::load_sample_buffer_u8(std::vector<uint8_t> &bytes)
-{
-    load_sample_buffer_int<uint8_t>(bytes);
-}
-
 template <class T>
 void WAV_t::load_sample_buffer_float(std::vector<uint8_t> &bytes)
 {
@@ -228,16 +213,6 @@ void WAV_t::load_sample_buffer_float(std::vector<uint8_t> &bytes)
     // assign each sample to a channel
     for (int i = 0; i < total_samples; i++)
         samples[channel_counter++ % header.num_channels].push_back(static_cast<double>(buffer[i]));
-}
-
-void WAV_t::load_sample_buffer_f32(std::vector<uint8_t> &bytes)
-{
-    load_sample_buffer_float<float>(bytes);
-}
-
-void WAV_t::load_sample_buffer_f64(std::vector<uint8_t> &bytes)
-{
-    load_sample_buffer_float<double>(bytes);
 }
 
 template <class From, class To>
@@ -277,15 +252,8 @@ void WAV_t::write_sample_buffer_int(std::vector<uint8_t> &bytes)
     }
 }
 
-void WAV_t::write_sample_buffer_i16(std::vector<uint8_t> &bytes)
-{
-    printf("write i16\n");
-    write_sample_buffer_int<int16_t>(bytes);
-}
-
 void WAV_t::write_sample_buffer_i24(std::vector<uint8_t> &bytes)
 {
-    printf("write i24\n");
     // reserve some space
     int total_samples = 0;
     for (auto i : samples)
@@ -300,18 +268,6 @@ void WAV_t::write_sample_buffer_i24(std::vector<uint8_t> &bytes)
         for (int j = 0; j < 3; j++)
             bytes.push_back(reinterpret_cast<uint8_t *>(&smp)[j]);
     }
-}
-
-void WAV_t::write_sample_buffer_i32(std::vector<uint8_t> &bytes)
-{
-    printf("write i32\n");
-    write_sample_buffer_int<int32_t>(bytes);
-}
-
-void WAV_t::write_sample_buffer_u8(std::vector<uint8_t> &bytes)
-{
-    printf("write u8\n");
-    write_sample_buffer_int<uint8_t>(bytes);
 }
 
 template <class T>
@@ -331,18 +287,6 @@ void WAV_t::write_sample_buffer_float(std::vector<uint8_t> &bytes)
         for (int j = 0; j < sizeof(T); j++)
             bytes.push_back(reinterpret_cast<uint8_t *>(&smp)[j]);
     }
-}
-
-void WAV_t::write_sample_buffer_f32(std::vector<uint8_t> &bytes)
-{
-    printf("write f32\n");
-    write_sample_buffer_float<float>(bytes);
-}
-
-void WAV_t::write_sample_buffer_f64(std::vector<uint8_t> &bytes)
-{
-    printf("write f64\n");
-    write_sample_buffer_float<double>(bytes);
 }
 
 // =========== PUBLIC METHODS ===========
