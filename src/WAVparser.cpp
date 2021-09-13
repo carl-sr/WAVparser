@@ -378,12 +378,23 @@ void WAV_t::set_sample_rate(uint16_t new_rate)
 
 int WAV_t::sample_size() const
 {
-    return header.bits_per_sample / 8;
-}
-
-void WAV_t::set_sample_size(int new_size)
-{
-    header.bits_per_sample = new_size * 8;
+    switch (encoding)
+    {
+    case WAV_encoding::signed_16_PCM:
+        return 2;
+    case WAV_encoding::signed_24_PCM:
+        return 3;
+    case WAV_encoding::signed_32_PCM:
+        return 4;
+    case WAV_encoding::unsigned_8_PCM:
+        return 1;
+    case WAV_encoding::float_32:
+        return 4;
+    case WAV_encoding::float_64:
+        return 8;
+    default:
+        return 0;
+    };
 }
 
 std::vector<uint8_t> &WAV_t::extra_params()

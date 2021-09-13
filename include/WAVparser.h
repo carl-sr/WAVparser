@@ -138,12 +138,6 @@ public:
     int sample_size() const;
 
     /**
-     * Set the size in bytes of a sample when written.
-     * @param new_size The new size of a sample.
-     */
-    void set_sample_size(int new_size);
-
-    /**
      * Get the vector containing byte data for extra parameters. 
      * Extra parameters are not parsed by the object.
      */
