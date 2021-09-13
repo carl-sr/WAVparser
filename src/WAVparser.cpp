@@ -261,12 +261,26 @@ To WAV_t::value_map(From value, From from_min, From from_max, To to_min, To to_m
 template <class T>
 void WAV_t::write_sample_buffer_int(std::vector<uint8_t> &bytes)
 {
+    // reserve some space
+    int total_samples = 0;
+    for (auto i : samples)
+        total_samples += i.size();
+    bytes.reserve(total_samples * sizeof(T));
+
+    for (int i = 0; i < total_samples; i++)
+    {
+        T smp = value_map<double, T>((samples[i % header.num_channels][i / header.num_channels]), -1.0, 1.0, std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+
+        // push individual bytes from smp into bytes
+        for (int j = 0; j < sizeof(T); j++)
+            bytes.push_back(reinterpret_cast<uint8_t *>(&smp)[j]);
+    }
 }
 
 void WAV_t::write_sample_buffer_i16(std::vector<uint8_t> &bytes)
 {
     printf("write i16\n");
-    write_sample_buffer_int<uint16_t>(bytes);
+    write_sample_buffer_int<int16_t>(bytes);
 }
 
 void WAV_t::write_sample_buffer_i24(std::vector<uint8_t> &bytes)
@@ -289,6 +303,20 @@ void WAV_t::write_sample_buffer_u8(std::vector<uint8_t> &bytes)
 template <class T>
 void WAV_t::write_sample_buffer_float(std::vector<uint8_t> &bytes)
 {
+    // reserve some space
+    int total_samples = 0;
+    for (auto i : samples)
+        total_samples += i.size();
+    bytes.reserve(total_samples * sizeof(T));
+
+    for (int i = 0; i < total_samples; i++)
+    {
+        T smp = static_cast<T>(samples[i % header.num_channels][i / header.num_channels]);
+
+        // push individual bytes from smp into bytes
+        for (int j = 0; j < sizeof(T); j++)
+            bytes.push_back(reinterpret_cast<uint8_t *>(&smp)[j]);
+    }
 }
 
 void WAV_t::write_sample_buffer_f32(std::vector<uint8_t> &bytes)
