@@ -113,7 +113,7 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
 
     // choose encoding type - none is the default
     encoding = WAV_encoding::none;
-    if (header.audio_format == 1) // PCM
+    if (header.audio_format == FORMAT_PCM) // PCM
     {
         switch (header.bits_per_sample)
         {
@@ -131,7 +131,7 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
             break;
         }
     }
-    else if (header.audio_format == 3) // float
+    else if (header.audio_format == FORMAT_FLOAT) // float
     {
         switch (header.bits_per_sample)
         {
@@ -336,27 +336,27 @@ void WAV_t::update_header()
     switch (encoding)
     {
     case WAV_encoding::signed_16_PCM:
-        header.audio_format = 1;
+        header.audio_format = FORMAT_PCM;
         header.bits_per_sample = 16;
         break;
     case WAV_encoding::signed_24_PCM:
-        header.audio_format = 1;
+        header.audio_format = FORMAT_PCM;
         header.bits_per_sample = 24;
         break;
     case WAV_encoding::signed_32_PCM:
-        header.audio_format = 1;
+        header.audio_format = FORMAT_PCM;
         header.bits_per_sample = 32;
         break;
     case WAV_encoding::unsigned_8_PCM:
-        header.audio_format = 1;
+        header.audio_format = FORMAT_PCM;
         header.bits_per_sample = 8;
         break;
     case WAV_encoding::float_32:
-        header.audio_format = 3;
+        header.audio_format = FORMAT_FLOAT;
         header.bits_per_sample = 32;
         break;
     case WAV_encoding::float_64:
-        header.audio_format = 3;
+        header.audio_format = FORMAT_FLOAT;
         header.bits_per_sample = 64;
         break;
     }

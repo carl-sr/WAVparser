@@ -10,6 +10,21 @@
 
 #pragma pack(2)
 
+// audio format codes - https://sites.google.com/site/musicgapi/technical-documents/wav-file-format
+// only pcm and float are addressed in code, so far...
+#define FORMAT_NONE 0x0000            // unknown
+#define FORMAT_PCM 0x0001             // pcm/uncompressed
+#define FORMAT_FLOAT 0x0003           // float encoded samples from Audacity have an audio format code of 3, don't actually know what this is but it works
+#define FORMAT_MS_ADPCM 0x0002        // Microsoft ADPCM
+#define FORMAT_ITU_G711_a_law 0x0006  // ITU G .711 a - law
+#define FORMAT_ITU_G711_Au_law 0x0007 // ITU G .711 Âµ - law
+#define FORMAT_IMA_ADPCM 0x0011       // IMA ADPCM
+#define FORMAT_ITU_G723_ADPCM 0x0016  // ITU G .723 ADPCM(Yamaha)
+#define FORMAT_GSM 0x0031             // GSM 6.10
+#define FORMAT_ITU_G721_ADPCM 0x0040  // ITU G .721 ADPCM
+#define FORMAT_MPEG 0x0050            // MPEG
+#define FORMAT_EXPERIMENTAL 0xFFFF    // Experimental
+
 /**
  * WAV file header struct.
  */
