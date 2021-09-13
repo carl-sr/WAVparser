@@ -286,6 +286,20 @@ void WAV_t::write_sample_buffer_i16(std::vector<uint8_t> &bytes)
 void WAV_t::write_sample_buffer_i24(std::vector<uint8_t> &bytes)
 {
     printf("write i24\n");
+    // reserve some space
+    int total_samples = 0;
+    for (auto i : samples)
+        total_samples += i.size();
+    bytes.reserve(total_samples * 3);
+
+    for (int i = 0; i < total_samples; i++)
+    {
+        int32_t smp = value_map<double, int32_t>(samples[i % header.num_channels][i / header.num_channels], -1.0, 1.0, -0x800000, 0x7fffff);
+
+        // push individual bytes from smp into bytes
+        for (int j = 0; j < 3; j++)
+            bytes.push_back(reinterpret_cast<uint8_t *>(&smp)[j]);
+    }
 }
 
 void WAV_t::write_sample_buffer_i32(std::vector<uint8_t> &bytes)
