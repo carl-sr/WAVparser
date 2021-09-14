@@ -61,15 +61,15 @@ private:
     RIFF_chunk_data_t *m_data(RIFF_chunk_list_t &data);
     RIFF_chunk_data_t *m_fmt(RIFF_chunk_list_t &fmt);
 
-    // write fmt and data sections into m_riff
+    // write fmt and data sections into RIFF_t object
     int write_fmt(RIFF_t &riff);
     int write_data(RIFF_t &riff);
+    int write_cue(RIFF_t &riff);
 
-    // Load raw byte data from the RIFF_t object into the header
-    void load_fmt(RIFF_chunk_data_t &riff);
-
-    // Load raw byte data from the RIFF_t object into the samples vector.
-    void load_data(RIFF_chunk_data_t &riff);
+    // Load raw byte data from the RIFF_t object
+    void load_fmt(RIFF_t &riff);
+    void load_data(RIFF_t &riff);
+    void load_cue(RIFF_t &riff);
 
     // load from riff
     template <typename T>

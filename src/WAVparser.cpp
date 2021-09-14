@@ -3,12 +3,12 @@
 // =========== PIRVATE METHODS ===========
 RIFF_chunk_data_t *WAV_t::m_data(RIFF_chunk_list_t &riff)
 {
-    return reinterpret_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("data"));
+    return dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("data"));
 }
 
 RIFF_chunk_data_t *WAV_t::m_fmt(RIFF_chunk_list_t &riff)
 {
-    return reinterpret_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("fmt "));
+    return dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("fmt "));
 }
 
 int WAV_t::write_fmt(RIFF_t &riff)
@@ -83,31 +83,45 @@ int WAV_t::write_data(RIFF_t &riff)
     return bytes_written;
 }
 
-void WAV_t::load_fmt(RIFF_chunk_data_t &fmt)
+int WAV_t::write_cue(RIFF_t &riff)
 {
-    memcpy(reinterpret_cast<uint8_t *>(&header), &fmt.get_data().front(), fmt.size());
+}
+
+void WAV_t::load_fmt(RIFF_t &riff)
+{
+    // WAV file should have a 'fmt ' chunk - throw if fmt is not present
+    RIFF_chunk_data_t *fmt = m_fmt(riff.get_root_chunk());
+    if (!fmt)
+        throw std::runtime_error("File does not have a valid 'fmt ' chunk.");
+
+    memcpy(reinterpret_cast<uint8_t *>(&header), &fmt->get_data().front(), fmt->size());
 
     // load extra params if present
-    if (fmt.get_data().size() > 16)
+    if (fmt->get_data().size() > 16)
     {
         // grab size of extra params - magic value 16: end of normal header data
-        mempcpy(reinterpret_cast<uint8_t *>(&header.extra_params_size), &fmt.get_data()[16], 2);
+        mempcpy(reinterpret_cast<uint8_t *>(&header.extra_params_size), &fmt->get_data()[16], 2);
 
         // grab extra params - magic value 18: end of normal header data and size of extra params
         header.extra_params.reserve(header.extra_params_size);
-        header.extra_params.insert(header.extra_params.end(), fmt.get_data().begin() + 18, fmt.get_data().end());
+        header.extra_params.insert(header.extra_params.end(), fmt->get_data().begin() + 18, fmt->get_data().end());
     }
 }
 
-void WAV_t::load_data(RIFF_chunk_data_t &data)
+void WAV_t::load_data(RIFF_t &riff)
 {
-    std::vector<uint8_t> &d = data.get_data();
+    // WAV file should have a 'data' chunk - throw if data is not present
+    RIFF_chunk_data_t *data = m_data(riff.get_root_chunk());
+    if (data == nullptr)
+        throw std::runtime_error("File does not have a valid 'data' chunk.");
+
+    std::vector<uint8_t> &d = data->get_data();
 
     // determine size for sample vector
     // create channels
     samples.insert(samples.begin(), header.num_channels, std::vector<double>());
     // reserve space for samples
-    int samples_per_channel{data.size() / header.num_channels};
+    int samples_per_channel{data->size() / header.num_channels};
     for (auto i : samples)
         i.reserve(samples_per_channel);
 
@@ -168,6 +182,10 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
     default:
         throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)encoding) + ")");
     }
+}
+
+void WAV_t::load_cue(RIFF_t &riff)
+{
 }
 
 template <class T>
@@ -303,19 +321,9 @@ WAV_t::WAV_t(std::string filename)
     if (strcmp(riff.get_root_chunk().get_form_type(), "WAVE") != 0)
         throw std::runtime_error("File is not a valid WAVE file.");
 
-    // WAV file should have a 'fmt ' chunk
-    RIFF_chunk_data_t *fmt_chunk = dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("fmt "));
-    if (!fmt_chunk)
-        throw std::runtime_error("File does not have a valid 'fmt ' chunk.");
-
-    // WAV file should have a 'data' chunk
-    RIFF_chunk_data_t *data_chunk = dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("data"));
-    if (!data_chunk)
-        throw std::runtime_error("File does not have a valid 'data' chunk.");
-
-    // load required chunk data
-    load_fmt(*fmt_chunk);
-    load_data(*data_chunk);
+    load_fmt(riff);
+    load_data(riff);
+    load_cue(riff);
 }
 
 int WAV_t::write(std::string filepath)
