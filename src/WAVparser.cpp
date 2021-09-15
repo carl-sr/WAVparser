@@ -186,6 +186,73 @@ void WAV_t::load_data(RIFF_t &riff)
 
 void WAV_t::load_cue(RIFF_t &riff)
 {
+    // only used here
+    struct cue_point_t
+    {
+        uint32_t identifier;
+        uint32_t position;
+        uint32_t data_chunk_id;
+        uint32_t chunk_start;
+        uint32_t block_start;
+        uint32_t sample_start;
+    };
+
+    std::unordered_map<uint32_t, std::string> labl_identifiers;
+
+    // find labels - these are optional?
+    for (auto &i : riff.get_root_chunk().get_subchunks())
+    {
+        // find and search list chunks
+        RIFF_chunk_list_t *list = dynamic_cast<RIFF_chunk_list_t *>(i.get());
+        if (list != nullptr)
+        {
+            // looking for 'associated data list'
+            if (strcmp(list->get_form_type(), "adtl") != 0)
+                continue;
+
+            // this is the correct list chunk - find all of the 'labl' or 'note' chunks - they contain the label strings
+            const std::vector<std::unique_ptr<RIFF_chunk_t>> &adtl_chunks = list->get_subchunks();
+            for (auto &j : adtl_chunks)
+            {
+                RIFF_chunk_data_t *adtl = dynamic_cast<RIFF_chunk_data_t *>(j.get());
+                if (adtl != nullptr && (strcmp(adtl->get_identifier(), "labl") == 0 || strcmp(adtl->get_identifier(), "note") == 0))
+                {
+                    // this is an 'adtl' or 'note' chunk
+                    uint32_t adtl_id;
+                    memcpy(&adtl_id, &adtl->get_data().front(), sizeof(adtl_id));
+                    char *identifier = reinterpret_cast<char *>(&adtl->get_data().front()) + 4;
+                    labl_identifiers[adtl_id] = std::string(identifier, strlen(identifier));
+                }
+            }
+        }
+    }
+
+    // grab cue
+    RIFF_chunk_data_t *cue_chunk = dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("cue "));
+    if (cue_chunk != nullptr)
+    {
+        std::vector<uint8_t> cue_v = cue_chunk->get_data();
+
+        // copy length
+        uint32_t cue_chunk_length{0};
+        memcpy(&cue_chunk_length, &cue_v.front(), sizeof(cue_chunk_length));
+        cue_v.erase(cue_v.begin(), cue_v.begin() + sizeof(cue_chunk_length)); // delete this data
+
+        // grab each cue chunk
+        for (int i = 0; i < cue_chunk_length; i++)
+        {
+            cue_point_t cue_point;
+            memcpy(&cue_point, &cue_v.front(), sizeof(cue_point));
+            cue_v.erase(cue_v.begin(), cue_v.begin() + sizeof(cue_point));
+
+            WAV_t::cue_point point{
+                cue_point.sample_start,
+                labl_identifiers.find(cue_point.identifier) == labl_identifiers.end() ? std::to_string(cue_point.identifier) : labl_identifiers[cue_point.identifier]
+            };
+
+            cue_points.push_back(point);
+        }
+    }
 }
 
 template <class T>
@@ -450,6 +517,12 @@ void WAV_t::set_encoding(WAV_encoding new_encoding)
     encoding = new_encoding;
     update_header();
 }
+
+std::vector<WAV_t::cue_point> &WAV_t::cues()
+{
+    return cue_points;
+}
+
 // =========== METHODS FOR SAMPLE DATA ===========
 
 uint16_t WAV_t::num_channels() const

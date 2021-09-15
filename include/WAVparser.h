@@ -3,6 +3,7 @@
 #include <vector>
 #include <limits>
 #include <iostream>
+#include <unordered_map>
 
 #include "RIFFparser.h"
 
@@ -57,6 +58,12 @@ enum class WAV_encoding
 class WAV_t
 {
 private:
+    struct cue_point
+    {
+        uint32_t sample_offset{0};
+        std::string label;
+    };
+
     // quick access
     RIFF_chunk_data_t *m_data(RIFF_chunk_list_t &data);
     RIFF_chunk_data_t *m_fmt(RIFF_chunk_list_t &fmt);
@@ -99,6 +106,8 @@ private:
     std::vector<std::vector<double>> samples;
     WAV_fmt_t header;
     WAV_encoding encoding{WAV_encoding::none};
+
+    std::vector<cue_point> cue_points;
 
 public:
     /**
@@ -172,6 +181,12 @@ public:
      * @param new_encoding The encoding type to use during the next write.
      */
     void set_encoding(WAV_encoding new_encoding);
+
+    /**
+     * Get the list of cue points.
+     * @return Reference to list of cue points.
+     */
+    std::vector<WAV_t::cue_point> &cues();
 
     // =========== METHODS FOR SAMPLE DATA ===========
 
