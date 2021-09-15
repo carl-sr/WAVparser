@@ -55,22 +55,22 @@ int WAV_t::write_data(RIFF_t &riff)
 
     switch (encoding)
     {
-    case WAV_encoding::signed_16_PCM:
+    case WAV_t::Encoding::signed_16_PCM:
         write_sample_buffer_int<int16_t>(bytes);
         break;
-    case WAV_encoding::signed_24_PCM:
+    case WAV_t::Encoding::signed_24_PCM:
         write_sample_buffer_i24(bytes);
         break;
-    case WAV_encoding::signed_32_PCM:
+    case WAV_t::Encoding::signed_32_PCM:
         write_sample_buffer_int<int32_t>(bytes);
         break;
-    case WAV_encoding::unsigned_8_PCM:
+    case WAV_t::Encoding::unsigned_8_PCM:
         write_sample_buffer_int<uint8_t>(bytes);
         break;
-    case WAV_encoding::float_32:
+    case WAV_t::Encoding::float_32:
         write_sample_buffer_float<float>(bytes);
         break;
-    case WAV_encoding::float_64:
+    case WAV_t::Encoding::float_64:
         write_sample_buffer_float<double>(bytes);
         break;
     default:
@@ -112,22 +112,22 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
         i.reserve(samples_per_channel);
 
     // choose encoding type - none is the default
-    encoding = WAV_encoding::none;
+    encoding = WAV_t::Encoding::none;
     if (header.audio_format == FORMAT_PCM) // PCM
     {
         switch (header.bits_per_sample)
         {
         case 8:
-            encoding = WAV_encoding::unsigned_8_PCM;
+            encoding = WAV_t::Encoding::unsigned_8_PCM;
             break;
         case 16:
-            encoding = WAV_encoding::signed_16_PCM;
+            encoding = WAV_t::Encoding::signed_16_PCM;
             break;
         case 24:
-            encoding = WAV_encoding::signed_24_PCM;
+            encoding = WAV_t::Encoding::signed_24_PCM;
             break;
         case 32:
-            encoding = WAV_encoding::signed_32_PCM;
+            encoding = WAV_t::Encoding::signed_32_PCM;
             break;
         }
     }
@@ -136,10 +136,10 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
         switch (header.bits_per_sample)
         {
         case 32:
-            encoding = WAV_encoding::float_32;
+            encoding = WAV_t::Encoding::float_32;
             break;
         case 64:
-            encoding = WAV_encoding::float_64;
+            encoding = WAV_t::Encoding::float_64;
             break;
         }
     }
@@ -147,22 +147,22 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
     // choose read function based on encoding type
     switch (encoding)
     {
-    case WAV_encoding::signed_16_PCM:
+    case WAV_t::Encoding::signed_16_PCM:
         load_sample_buffer_int<int16_t>(d);
         break;
-    case WAV_encoding::signed_24_PCM:
+    case WAV_t::Encoding::signed_24_PCM:
         load_sample_buffer_i24(d);
         break;
-    case WAV_encoding::signed_32_PCM:
+    case WAV_t::Encoding::signed_32_PCM:
         load_sample_buffer_int<int32_t>(d);
         break;
-    case WAV_encoding::unsigned_8_PCM:
+    case WAV_t::Encoding::unsigned_8_PCM:
         load_sample_buffer_int<uint8_t>(d);
         break;
-    case WAV_encoding::float_32:
+    case WAV_t::Encoding::float_32:
         load_sample_buffer_float<float>(d);
         break;
-    case WAV_encoding::float_64:
+    case WAV_t::Encoding::float_64:
         load_sample_buffer_float<double>(d);
         break;
     default:
@@ -293,7 +293,7 @@ void WAV_t::write_sample_buffer_float(std::vector<uint8_t> &bytes)
 
 WAV_t::WAV_t() : samples(2, std::vector<double>())
 {
-    encoding = WAV_encoding::signed_32_PCM;
+    encoding = WAV_t::Encoding::signed_32_PCM;
 }
 
 WAV_t::WAV_t(std::string filename)
@@ -335,27 +335,27 @@ void WAV_t::update_header()
     header.num_channels = samples.size();
     switch (encoding)
     {
-    case WAV_encoding::signed_16_PCM:
+    case WAV_t::Encoding::signed_16_PCM:
         header.audio_format = FORMAT_PCM;
         header.bits_per_sample = 16;
         break;
-    case WAV_encoding::signed_24_PCM:
+    case WAV_t::Encoding::signed_24_PCM:
         header.audio_format = FORMAT_PCM;
         header.bits_per_sample = 24;
         break;
-    case WAV_encoding::signed_32_PCM:
+    case WAV_t::Encoding::signed_32_PCM:
         header.audio_format = FORMAT_PCM;
         header.bits_per_sample = 32;
         break;
-    case WAV_encoding::unsigned_8_PCM:
+    case WAV_t::Encoding::unsigned_8_PCM:
         header.audio_format = FORMAT_PCM;
         header.bits_per_sample = 8;
         break;
-    case WAV_encoding::float_32:
+    case WAV_t::Encoding::float_32:
         header.audio_format = FORMAT_FLOAT;
         header.bits_per_sample = 32;
         break;
-    case WAV_encoding::float_64:
+    case WAV_t::Encoding::float_64:
         header.audio_format = FORMAT_FLOAT;
         header.bits_per_sample = 64;
         break;
@@ -380,17 +380,17 @@ int WAV_t::sample_size() const
 {
     switch (encoding)
     {
-    case WAV_encoding::signed_16_PCM:
+    case WAV_t::Encoding::signed_16_PCM:
         return 2;
-    case WAV_encoding::signed_24_PCM:
+    case WAV_t::Encoding::signed_24_PCM:
         return 3;
-    case WAV_encoding::signed_32_PCM:
+    case WAV_t::Encoding::signed_32_PCM:
         return 4;
-    case WAV_encoding::unsigned_8_PCM:
+    case WAV_t::Encoding::unsigned_8_PCM:
         return 1;
-    case WAV_encoding::float_32:
+    case WAV_t::Encoding::float_32:
         return 4;
-    case WAV_encoding::float_64:
+    case WAV_t::Encoding::float_64:
         return 8;
     default:
         return 0;
@@ -432,12 +432,12 @@ uint16_t WAV_t::calculate_block_align()
     return header.block_align;
 }
 
-WAV_encoding WAV_t::get_encoding() const
+WAV_t::Encoding WAV_t::get_encoding() const
 {
     return encoding;
 }
 
-void WAV_t::set_encoding(WAV_encoding new_encoding)
+void WAV_t::set_encoding(WAV_t::Encoding new_encoding)
 {
     encoding = new_encoding;
     update_header();

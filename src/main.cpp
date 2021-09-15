@@ -25,22 +25,22 @@ int main(int argc, char *argv[])
     wav.print_header();
 
     // set encodings and write files
-    wav.set_encoding(WAV_encoding::unsigned_8_PCM);
+    wav.set_encoding(WAV_t::Encoding::unsigned_8_PCM);
     wav.write("out_u8.wav");
 
-    wav.set_encoding(WAV_encoding::signed_16_PCM);
+    wav.set_encoding(WAV_t::Encoding::signed_16_PCM);
     wav.write("out_i16.wav");
 
-    wav.set_encoding(WAV_encoding::signed_24_PCM);
+    wav.set_encoding(WAV_t::Encoding::signed_24_PCM);
     wav.write("out_i24.wav");
 
-    wav.set_encoding(WAV_encoding::signed_32_PCM);
+    wav.set_encoding(WAV_t::Encoding::signed_32_PCM);
     wav.write("out_i32.wav");
 
-    wav.set_encoding(WAV_encoding::float_32);
+    wav.set_encoding(WAV_t::Encoding::float_32);
     wav.write("out_f32.wav");
 
-    wav.set_encoding(WAV_encoding::float_64);
+    wav.set_encoding(WAV_t::Encoding::float_64);
     wav.write("out_f64.wav");
 
 
