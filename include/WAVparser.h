@@ -54,6 +54,8 @@ public:
         unsigned_8_PCM,
         float_32,
         float_64,
+        ms_ADPCM,
+        ima_ADPCM,
         none
     };
 
@@ -80,6 +82,9 @@ private:
 
     template <typename T>
     void load_sample_buffer_float(std::vector<uint8_t> &bytes);
+
+    void load_sample_buffer_ms_adpcm(std::vector<uint8_t> &bytes);
+    void load_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes);
 
     // write to riff
     template <typename T>

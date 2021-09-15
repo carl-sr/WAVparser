@@ -144,6 +144,11 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
         }
     }
 
+    else if (header.audio_format == FORMAT_MS_ADPCM)
+        encoding = WAV_t::Encoding::ms_ADPCM;
+    else if (header.audio_format == FORMAT_IMA_ADPCM)
+        encoding = WAV_t::Encoding::ima_ADPCM;
+
     // choose read function based on encoding type
     switch (encoding)
     {
@@ -164,6 +169,12 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
         break;
     case WAV_t::Encoding::float_64:
         load_sample_buffer_float<double>(d);
+        break;
+    case WAV_t::Encoding::ms_ADPCM:
+        load_sample_buffer_ms_adpcm(d);
+        break;
+    case WAV_t::Encoding::ima_ADPCM:
+        load_sample_buffer_ima_adpcm(d);
         break;
     default:
         throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)encoding) + ")");
@@ -213,6 +224,14 @@ void WAV_t::load_sample_buffer_float(std::vector<uint8_t> &bytes)
     // assign each sample to a channel
     for (int i = 0; i < total_samples; i++)
         samples[channel_counter++ % header.num_channels].push_back(static_cast<double>(buffer[i]));
+}
+
+void WAV_t::load_sample_buffer_ms_adpcm(std::vector<uint8_t> &bytes)
+{
+}
+
+void WAV_t::load_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes)
+{
 }
 
 template <class From, class To>
