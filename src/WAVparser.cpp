@@ -85,7 +85,8 @@ int WAV_t::write_data(RIFF_t &riff)
 
 void WAV_t::load_fmt(RIFF_chunk_data_t &fmt)
 {
-    memcpy(reinterpret_cast<uint8_t *>(&header), &fmt.get_data().front(), fmt.size());
+    // 16 - sizeof header excluding extra params
+    memcpy(reinterpret_cast<uint8_t *>(&header), &fmt.get_data().front(), 16);
 
     // load extra params if present
     if (fmt.get_data().size() > 16)
