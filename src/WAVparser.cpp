@@ -149,6 +149,10 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
         encoding = WAV_t::Encoding::ms_ADPCM;
     else if (header.audio_format == FORMAT_IMA_ADPCM)
         encoding = WAV_t::Encoding::ima_ADPCM;
+    else if (header.audio_format == FORMAT_ITU_G711_Au_law)
+        encoding = WAV_t::Encoding::u_law;
+    else if (header.audio_format == FORMAT_ITU_G711_a_law)
+        encoding = WAV_t::Encoding::a_law;
 
     // choose read function based on encoding type
     switch (encoding)
@@ -176,6 +180,12 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
         break;
     case WAV_t::Encoding::ima_ADPCM:
         load_sample_buffer_ima_adpcm(d);
+        break;
+    case WAV_t::Encoding::u_law:
+        load_sample_buffer_u_law(d);
+        break;
+    case WAV_t::Encoding::a_law:
+        load_sample_buffer_a_law(d);
         break;
     default:
         throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)encoding) + ")");
@@ -232,6 +242,14 @@ void WAV_t::load_sample_buffer_ms_adpcm(std::vector<uint8_t> &bytes)
 }
 
 void WAV_t::load_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes)
+{
+}
+
+void WAV_t::load_sample_buffer_u_law(std::vector<uint8_t> &bytes)
+{
+}
+
+void WAV_t::load_sample_buffer_a_law(std::vector<uint8_t> &bytes)
 {
 }
 

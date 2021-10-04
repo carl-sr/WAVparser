@@ -56,6 +56,8 @@ public:
         float_64,
         ms_ADPCM,
         ima_ADPCM,
+        u_law,
+        a_law,
         none
     };
 
@@ -85,6 +87,9 @@ private:
 
     void load_sample_buffer_ms_adpcm(std::vector<uint8_t> &bytes);
     void load_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes);
+
+    void load_sample_buffer_u_law(std::vector<uint8_t> &bytes);
+    void load_sample_buffer_a_law(std::vector<uint8_t> &bytes);
 
     // write to riff
     template <typename T>
