@@ -4,12 +4,11 @@
 #include <limits>
 #include <iostream>
 #include <unordered_map>
+#include <algorithm>
 
 #include "RIFFparser.h"
 
 #pragma once
-
-#pragma pack(2)
 
 // audio format codes - https://sites.google.com/site/musicgapi/technical-documents/wav-file-format
 // only pcm and float are addressed in code, so far...
@@ -26,6 +25,7 @@
 #define FORMAT_MPEG 0x0050            // MPEG
 #define FORMAT_EXPERIMENTAL 0xFFFF    // Experimental
 
+#pragma pack(push, 1)
 /**
  * WAV file header struct.
  */
@@ -40,6 +40,8 @@ struct WAV_fmt_t
     uint16_t extra_params_size{0};
     std::vector<uint8_t> extra_params; // generally don't exist
 };
+
+#pragma pack(pop)
 
 enum class WAV_encoding
 {
@@ -57,12 +59,25 @@ enum class WAV_encoding
  */
 class WAV_t
 {
-private:
+public:
     struct cue_point
     {
         uint32_t sample_offset{0};
         std::string label;
     };
+
+private:
+#pragma pack(push, 1)
+    struct cue_point_t
+    {
+        uint32_t identifier;
+        uint32_t position;
+        uint32_t data_chunk_id;
+        uint32_t chunk_start;
+        uint32_t block_start;
+        uint32_t sample_start;
+    };
+#pragma pack(pop)
 
     // quick access
     RIFF_chunk_data_t *m_data(RIFF_chunk_list_t &data);

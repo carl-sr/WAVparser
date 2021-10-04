@@ -85,6 +85,54 @@ int WAV_t::write_data(RIFF_t &riff)
 
 int WAV_t::write_cue(RIFF_t &riff)
 {
+    RIFF_chunk_list_t label_chunk("adtl"); // holds an id and an ascii string for each cue point
+    std::vector<uint8_t> cue_chunk_data;   // holds cue_point_t data for each cue point
+
+    uint32_t starting_id{1};
+
+    // number of cue points as first four bytes
+    uint32_t size = cue_points.size();
+    for (int i = 0; i < sizeof(size); i++)
+        cue_chunk_data.push_back(reinterpret_cast<uint8_t *>(&size)[i]);
+
+    for (const auto &i : cue_points)
+    {
+        cue_point_t point = cue_point_t{
+            starting_id,
+            i.sample_offset,
+            0x61746164, // 'data'
+            0,
+            0,
+            i.sample_offset};
+
+        // insert to data vector
+        for (int i = 0; i < sizeof(cue_point_t); i++)
+            cue_chunk_data.push_back(reinterpret_cast<uint8_t *>(&point)[i]);
+
+        // create label data - reserve with size for string + null terminator + labl id
+        std::vector<uint8_t> label_data;
+        label_data.reserve(i.label.size() + 5);
+
+        // label id to bytes
+        for (int i = 0; i < 4; i++)
+            label_data.push_back(reinterpret_cast<uint8_t *>(&starting_id)[i]);
+
+        // label string to bytes
+        std::for_each(i.label.begin(), i.label.end(), [&label_data](auto c)
+                      { label_data.push_back(static_cast<uint8_t>(c)); });
+        label_data.push_back(0); // terminator
+
+        label_chunk.get_subchunks().push_back(std::make_unique<RIFF_chunk_data_t>("labl", label_data)); // insert new labl chunks
+
+        if (++starting_id == 0) // begins at one and increases, anything below that indicates an overflow
+            throw std::runtime_error("Integer overflow on cue point id, too many cue points?");
+    }
+
+    // insert cue and label chunks
+    riff.get_root_chunk().get_subchunks().push_back(std::make_unique<RIFF_chunk_data_t>("cue ", cue_chunk_data));
+    riff.get_root_chunk().get_subchunks().push_back(std::make_unique<RIFF_chunk_list_t>(std::move(label_chunk)));
+
+    return 0;
 }
 
 void WAV_t::load_fmt(RIFF_t &riff)
@@ -186,17 +234,6 @@ void WAV_t::load_data(RIFF_t &riff)
 
 void WAV_t::load_cue(RIFF_t &riff)
 {
-    // only used here
-    struct cue_point_t
-    {
-        uint32_t identifier;
-        uint32_t position;
-        uint32_t data_chunk_id;
-        uint32_t chunk_start;
-        uint32_t block_start;
-        uint32_t sample_start;
-    };
-
     std::unordered_map<uint32_t, std::string> labl_identifiers;
 
     // find labels - these are optional?
@@ -247,8 +284,7 @@ void WAV_t::load_cue(RIFF_t &riff)
 
             WAV_t::cue_point point{
                 cue_point.sample_start,
-                labl_identifiers.find(cue_point.identifier) == labl_identifiers.end() ? std::to_string(cue_point.identifier) : labl_identifiers[cue_point.identifier]
-            };
+                labl_identifiers.find(cue_point.identifier) == labl_identifiers.end() ? std::to_string(cue_point.identifier) : labl_identifiers[cue_point.identifier]};
 
             cue_points.push_back(point);
         }
@@ -400,6 +436,7 @@ int WAV_t::write(std::string filepath)
     riff.get_root_chunk().set_form_type("WAVE");
     write_fmt(riff);
     write_data(riff);
+    write_cue(riff);
     riff.set_filepath(filepath);
 
     return riff.write();
