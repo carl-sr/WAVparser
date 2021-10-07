@@ -478,7 +478,7 @@ void WAV_t::update_header()
 
 // =========== METHODS FOR HEADER INFORMATION ===========
 
-uint16_t WAV_t::sample_rate() const
+uint16_t WAV_t::get_sample_rate() const
 {
     return header.sample_rate;
 }
@@ -562,9 +562,30 @@ std::vector<WAV_t::cue_point> &WAV_t::cues()
 
 // =========== METHODS FOR SAMPLE DATA ===========
 
-uint16_t WAV_t::num_channels() const
+uint16_t WAV_t::get_num_channels() const
 {
     return samples.size();
+}
+
+void WAV_t::set_num_channels(int num_channels)
+{
+    if (get_num_channels() == num_channels)
+        return;
+
+    while (get_num_channels() != num_channels)
+    {
+        if (get_num_channels() > num_channels)
+            samples.pop_back();
+        else
+            samples.emplace_back(get_num_samples(), 0.0f);
+    }
+}
+
+int WAV_t::get_num_samples()
+{
+    if (get_num_channels() == 0)
+        return 0;
+    return channel(0).size();
 }
 
 std::vector<double> &WAV_t::channel(int i)
@@ -573,7 +594,7 @@ std::vector<double> &WAV_t::channel(int i)
 }
 std::vector<double> &WAV_t::add_channel()
 {
-    samples.push_back({});
+    samples.emplace_back(get_num_samples(), 0.0f);
     header.num_channels++;
     return samples.back();
 }

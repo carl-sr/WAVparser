@@ -148,7 +148,7 @@ public:
     /**
      * Get the current sample rate of the WAV data.
      */
-    uint16_t sample_rate() const;
+    uint16_t get_sample_rate() const;
 
     /**
      * Set a new sample rate for the WAV data.
@@ -208,7 +208,19 @@ public:
     /**
      * Get the current number of audio channels.
      */
-    uint16_t num_channels() const;
+    uint16_t get_num_channels() const;
+
+    /**
+     * Set the number of channels
+     * If the new number of channels is smaller than the current number, channels will be deleted.
+     * If it is greater than the current number, new channels initialized to zero will be created.
+     */
+    void set_num_channels(int num_channels);
+
+    /**
+     * Get the current number of samples in the sample buffer
+     */
+    int get_num_samples();
 
     /**
      * Get channel data.
