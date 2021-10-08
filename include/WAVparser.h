@@ -100,6 +100,11 @@ private:
     template <typename T>
     void write_sample_buffer_float(std::vector<uint8_t> &bytes);
 
+    void write_sample_buffer_ms_adpcm(std::vector<uint8_t> &bytes);
+    void write_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes);
+    void write_sample_buffer_u_law(std::vector<uint8_t> &bytes);
+    void write_sample_buffer_a_law(std::vector<uint8_t> &bytes);
+
     // update header information based on samples vector
     void update_header();
 

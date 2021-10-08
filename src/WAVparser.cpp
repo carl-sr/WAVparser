@@ -73,6 +73,18 @@ int WAV_t::write_data(RIFF_t &riff)
     case WAV_t::Encoding::float_64:
         write_sample_buffer_float<double>(bytes);
         break;
+    case WAV_t::Encoding::ms_ADPCM:
+        write_sample_buffer_ms_adpcm(bytes);
+        break;
+    case WAV_t::Encoding::ima_ADPCM:
+        write_sample_buffer_ima_adpcm(bytes);
+        break;
+    case WAV_t::Encoding::u_law:
+        write_sample_buffer_u_law(bytes);
+        break;
+    case WAV_t::Encoding::a_law:
+        write_sample_buffer_a_law(bytes);
+        break;
     default:
         throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)encoding) + ")");
     }
@@ -239,6 +251,7 @@ void WAV_t::load_sample_buffer_float(std::vector<uint8_t> &bytes)
 
 void WAV_t::load_sample_buffer_ms_adpcm(std::vector<uint8_t> &bytes)
 {
+    throw std::runtime_error("Microsoft ADPCM decoding not supported.");
 }
 
 void WAV_t::load_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes)
@@ -331,10 +344,12 @@ void WAV_t::load_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes)
 
 void WAV_t::load_sample_buffer_u_law(std::vector<uint8_t> &bytes)
 {
+    throw std::runtime_error("u-Law decoding not supported.");
 }
 
 void WAV_t::load_sample_buffer_a_law(std::vector<uint8_t> &bytes)
 {
+    throw std::runtime_error("A-Law decoding not supported.");
 }
 
 template <class From, class To>
@@ -409,6 +424,26 @@ void WAV_t::write_sample_buffer_float(std::vector<uint8_t> &bytes)
         for (int j = 0; j < sizeof(T); j++)
             bytes.push_back(reinterpret_cast<uint8_t *>(&smp)[j]);
     }
+}
+
+void WAV_t::write_sample_buffer_ms_adpcm(std::vector<uint8_t> &bytes)
+{
+    throw std::runtime_error("Microsoft ADPCM encoding not supported.");
+}
+
+void WAV_t::write_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes)
+{
+    throw std::runtime_error("IMA ADPCM encoding not supported.");
+}
+
+void WAV_t::write_sample_buffer_u_law(std::vector<uint8_t> &bytes)
+{
+    throw std::runtime_error("u-Law encoding not supported.");
+}
+
+void WAV_t::write_sample_buffer_a_law(std::vector<uint8_t> &bytes)
+{
+    throw std::runtime_error("A-Law encoding not supported.");
 }
 
 // =========== PUBLIC METHODS ===========
