@@ -188,7 +188,7 @@ void WAV_t::load_data(RIFF_chunk_data_t &data)
         load_sample_buffer_a_law(d);
         break;
     default:
-        throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)encoding) + ")");
+        throw std::runtime_error("Unsupported audio decoding format. (" + std::to_string((int)encoding) + ")");
     }
 }
 
@@ -243,6 +243,90 @@ void WAV_t::load_sample_buffer_ms_adpcm(std::vector<uint8_t> &bytes)
 
 void WAV_t::load_sample_buffer_ima_adpcm(std::vector<uint8_t> &bytes)
 {
+    const std::array<int, 16> ima_index_table = {-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8};
+    const std::array<int, 89> ima_step_table = {7, 8, 9, 10, 11, 12, 13,
+                                                14, 16, 17, 19, 21, 23, 25,
+                                                28, 31, 34, 37, 41, 45, 50,
+                                                55, 60, 66, 73, 80, 88, 97,
+                                                107, 118, 130, 143, 157, 173, 190,
+                                                209, 230, 253, 279, 307, 337, 371,
+                                                408, 449, 494, 544, 598, 658, 724,
+                                                796, 876, 963, 1060, 1166, 1282, 1411,
+                                                1552, 1707, 1878, 2066, 2272, 2499, 2749,
+                                                3024, 3327, 3660, 4026, 4428, 4871, 5358,
+                                                5894, 6484, 7132, 7845, 8630, 9493, 10442,
+                                                11487, 12635, 13899, 15289, 16818, 18500, 20350,
+                                                22385, 24623, 27086, 29794, 32767};
+
+    // construct individual ima blocks
+    std::vector<std::vector<uint8_t>> ima_blocks;
+    for (auto i = bytes.begin(); i < bytes.end(); i += header.block_align)
+        ima_blocks.emplace_back(i, i + header.block_align);
+
+    int sample_count{0};
+    for (const auto &block : ima_blocks)
+    {
+        // initialize values from the block preamble (4 bytes):
+        // - i16 predictor - the beginning sample for the block
+        // - u8 step_index - initial distance into the step table
+        // - u8 - unused
+        // predictor is i16 but can overflow, store as 32 bit
+        int predictor = static_cast<int16_t>(block[1] << 8 | block[0]);
+        int step_index = block[2];
+
+        channel(sample_count++ % num_channels()).push_back(value_map<int16_t, double>(predictor, INT16_MIN, INT16_MAX, -1.0f, 1.0f));
+
+        std::vector<uint8_t> nibbles;
+        nibbles.reserve(header.block_align * 2); // approximately ish
+        // construct nibbles, skip preamble (4 bytes)
+        for (auto i = block.begin() + 4; i != block.end(); i++)
+        {
+            nibbles.push_back(*i & 0xf);
+            nibbles.push_back(*i >> 4);
+        }
+
+        for (auto nibble : nibbles)
+        {
+            // set stepsize
+            int step_size = ima_step_table[step_index];
+
+            // decode individual sample
+            // adapted from: http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf
+            int diff = 0;
+
+            if (nibble & 0b0100)
+                diff += step_size;
+
+            if (nibble & 0b0010)
+                diff += step_size >> 1;
+
+            if (nibble & 0b0001)
+                diff += step_size >> 2;
+
+            diff += step_size >> 3;
+
+            // 4 bit sign bit means diff is negative
+            if (nibble & 0b1000)
+                diff = -diff;
+
+            predictor += diff;
+
+            // clamp new sample to 16 bit
+            if (predictor > INT16_MAX)
+                predictor = INT16_MAX;
+            else if (predictor < INT16_MIN)
+                predictor = INT16_MIN;
+
+            step_index += ima_index_table[nibble];
+
+            if (step_index > 88)
+                step_index = 88;
+            else if (step_index < 0)
+                step_index = 0;
+
+            channel(sample_count++ % num_channels()).push_back(value_map<int16_t, double>(predictor, INT16_MIN, INT16_MAX, -1.0f, 1.0f));
+        }
+    }
 }
 
 void WAV_t::load_sample_buffer_u_law(std::vector<uint8_t> &bytes)

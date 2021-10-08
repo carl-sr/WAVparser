@@ -3,6 +3,7 @@
 #include <vector>
 #include <limits>
 #include <iostream>
+#include <algorithm>
 
 #include "RIFFparser.h"
 
@@ -11,7 +12,6 @@
 #pragma pack(2)
 
 // audio format codes - https://sites.google.com/site/musicgapi/technical-documents/wav-file-format
-// only pcm and float are addressed in code, so far...
 #define FORMAT_NONE 0x0000            // unknown
 #define FORMAT_PCM 0x0001             // pcm/uncompressed
 #define FORMAT_FLOAT 0x0003           // float encoded samples from Audacity have an audio format code of 3, don't actually know what this is but it works
