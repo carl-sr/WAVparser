@@ -156,6 +156,8 @@ public:
      */
     void set_sample_rate(uint16_t new_rate);
 
+    void convert_sample_rate(uint16_t new_rate);
+
     /**
      * Get the size in bytes of a sample when written.
      */
@@ -191,6 +193,16 @@ public:
      */
     WAV_encoding get_encoding() const;
 
+    struct WAV_Encoding_String
+    {
+        const char *encoding_str;
+        WAV_encoding encoding_type;
+    };
+    /**
+     * Get a list of the operational WAV encodings.
+     */
+    const std::vector<WAV_Encoding_String> &get_available_encodings() const;
+
     /**
      * Set a new encoding type for the WAV data
      * @param new_encoding The encoding type to use during the next write.
@@ -216,6 +228,11 @@ public:
      * If it is greater than the current number, new channels initialized to zero will be created.
      */
     void set_num_channels(int num_channels);
+
+    /**
+     * Convert entire file to mono. Averages all channel samples into channel 0
+     */
+    void convert_to_mono();
 
     /**
      * Get the current number of samples in the sample buffer

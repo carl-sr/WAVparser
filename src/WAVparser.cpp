@@ -488,6 +488,11 @@ void WAV_t::set_sample_rate(uint16_t new_rate)
     header.sample_rate = new_rate;
 }
 
+void WAV_t::convert_sample_rate(uint16_t new_rate)
+{
+    // TODO
+}
+
 int WAV_t::sample_size() const
 {
     switch (encoding)
@@ -549,6 +554,20 @@ WAV_encoding WAV_t::get_encoding() const
     return encoding;
 }
 
+const std::vector<WAV_t::WAV_Encoding_String> &WAV_t::get_available_encodings() const
+{
+    static const std::vector<WAV_t::WAV_Encoding_String> available_encodings = {
+        {"16-bit PCM", WAV_encoding::signed_16_PCM},
+        {"24-bit PCM", WAV_encoding::signed_24_PCM},
+        {"32-bit PCM", WAV_encoding::signed_32_PCM},
+        {"8-bit PCM", WAV_encoding::unsigned_8_PCM},
+        {"32-bit Floating Point", WAV_encoding::float_32},
+        {"64-bit Floating Point", WAV_encoding::float_64},
+    };
+
+    return available_encodings;
+}
+
 void WAV_t::set_encoding(WAV_encoding new_encoding)
 {
     encoding = new_encoding;
@@ -578,6 +597,19 @@ void WAV_t::set_num_channels(int num_channels)
             samples.pop_back();
         else
             samples.emplace_back(get_num_samples(), 0.0f);
+    }
+}
+
+void WAV_t::convert_to_mono()
+{
+    reset_channel_lengths();
+    for (int i = 0; i < get_num_samples(); i++)
+    {
+        double sum{0.0f};
+        std::for_each(samples.begin(), samples.end(), [i, &sum](auto a) {
+            sum += a[i];
+        });
+        channel(0)[i] = sum / get_num_channels();
     }
 }
 

@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     // print all of the samples in the file
     for(int i = 0; i < wav.channel(0).size(); i++)
     {
-        for(int j = 0; j < wav.num_channels(); j++)
+        for(int j = 0; j < wav.get_num_channels(); j++)
         {
             double smp = wav.channel(j)[i];
             printf(smp >= 0.0f ? " %.8f  " : "%.8f  ", smp);
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 
     // get the total number of samples (from all channels)
     int num_samples{0};
-    for (int i = 0; i < wav.num_channels(); i++)
+    for (int i = 0; i < wav.get_num_channels(); i++)
         num_samples += wav.channel(i).size();
 
     // make sure each channel has an equal number of samples
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 
     // remove half of the samples
     int samples_per_channel = wav.channel(0).size();
-    for (int i = 0; i < wav.num_channels(); i++)
+    for (int i = 0; i < wav.get_num_channels(); i++)
     {
         std::vector<double> &channel = wav.channel(i);
         channel.erase(channel.begin(), channel.begin() + samples_per_channel / 2);
