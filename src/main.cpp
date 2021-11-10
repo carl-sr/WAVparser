@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
 
     // Create a WAV_t object from the file 'sample.wav'
     // sample.wav from https://freewavesamples.com/ensoniq-zr-76-01-dope-77-bpm
-    WAV_t wav("./sample.wav");
+    WAV_t<float> wav("./sample.wav");
 
     // print all of the samples in the file
     for(int i = 0; i < wav.channel(0).size(); i++)
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     int samples_per_channel = wav.channel(0).size();
     for (int i = 0; i < wav.get_num_channels(); i++)
     {
-        std::vector<double> &channel = wav.channel(i);
+        std::vector<float> &channel = wav.channel(i);
         channel.erase(channel.begin(), channel.begin() + samples_per_channel / 2);
     }
 
