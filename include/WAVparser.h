@@ -289,7 +289,7 @@ int WAV_t<Sample_Type>::write_cue(RIFF_t &riff)
 
     // number of cue points as first four bytes
     uint32_t size = m_cue_points.size();
-    for (int i = 0; i < sizeof(size); i++)
+    for (long unsigned int i = 0; i < sizeof(size); i++)
         cue_chunk_data.push_back(reinterpret_cast<uint8_t *>(&size)[i]);
 
     for (const auto &i : m_cue_points)
@@ -303,7 +303,7 @@ int WAV_t<Sample_Type>::write_cue(RIFF_t &riff)
             i.sample_offset};
 
         // insert to data vector
-        for (int i = 0; i < sizeof(cue_point_t); i++)
+        for (long unsigned int i = 0; i < sizeof(cue_point_t); i++)
             cue_chunk_data.push_back(reinterpret_cast<uint8_t *>(&point)[i]);
 
         // create label data - reserve with size for string + null terminator + labl id
@@ -476,7 +476,7 @@ void WAV_t<Sample_Type>::load_cue(RIFF_t &riff)
         cue_v.erase(cue_v.begin(), cue_v.begin() + sizeof(cue_chunk_length)); // delete this data
 
         // grab each cue chunk
-        for (int i = 0; i < cue_chunk_length; i++)
+        for (uint32_t i = 0; i < cue_chunk_length; i++)
         {
             cue_point_t cue_point;
             memcpy(&cue_point, &cue_v.front(), sizeof(cue_point));
@@ -573,7 +573,7 @@ void WAV_t<Sample_Type>::write_sample_buffer_int(std::vector<uint8_t> &bytes)
         T smp = value_map<Sample_Type, T>((m_samples[i % m_header.num_channels][i / m_header.num_channels]), -1.0, 1.0, std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
 
         // push individual bytes from smp into bytes
-        for (int j = 0; j < sizeof(T); j++)
+        for (long unsigned int j = 0; j < sizeof(T); j++)
             bytes.push_back(reinterpret_cast<uint8_t *>(&smp)[j]);
     }
 }
@@ -612,7 +612,7 @@ void WAV_t<Sample_Type>::write_sample_buffer_float(std::vector<uint8_t> &bytes)
         T smp = static_cast<T>(m_samples[i % m_header.num_channels][i / m_header.num_channels]);
 
         // push individual bytes from smp into bytes
-        for (int j = 0; j < sizeof(T); j++)
+        for (long unsigned int j = 0; j < sizeof(T); j++)
             bytes.push_back(reinterpret_cast<uint8_t *>(&smp)[j]);
     }
 }
@@ -646,6 +646,8 @@ void WAV_t<Sample_Type>::update_header()
     case WAV_encoding::float_64:
         m_header.audio_format = FORMAT_FLOAT;
         m_header.bits_per_sample = 64;
+        break;
+    case WAV_encoding::none:
         break;
     }
     calculate_block_align();
@@ -984,6 +986,6 @@ void WAV_t<Sample_Type>::reset_channel_lengths(Sample_Type fill)
 
     // fill the end of each sample vector
     for (auto i : m_samples)
-        if (i.size() < len)
+        if (i.size() < static_cast<long unsigned int>(len))
             i.insert(i.end(), fill, len - i.size());
 }
