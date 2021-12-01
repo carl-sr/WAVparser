@@ -2,77 +2,155 @@
 
 #include "./WAVparser.h"
 
-int main(int argc, char *argv[])
+int main()
 {
     std::cout << "WAVparser" << std::endl;
-
+    // ================================================================================================
+    // ================== CREATING WAV OBJECTS ==================
     // Create a WAV_t object from the file 'sample.wav'
     // sample.wav from https://freewavesamples.com/ensoniq-zr-76-01-dope-77-bpm
-    WAV_t<float> wav("./sample.wav");
+    // different sample types are supported - stick to float and double, other's don't work very well.
+    WAV<float> floatWav("./sample.wav");
+    WAV<double> doubleWav("./sample.wav");
 
-    // print all of the samples in the file
-    for(int i = 0; i < wav.channel(0).size(); i++)
-    {
-        for(int j = 0; j < wav.get_num_channels(); j++)
-        {
-            double smp = wav.channel(j)[i];
-            printf(smp >= 0.0f ? " %.8f  " : "%.8f  ", smp);
-        }
-        putchar('\n');
-    }
-    
+    // ================================================================================================
+    // ================== HEADER METHODS ==================
     // quick print header information
-    wav.print_header();
+    printf("Header information:\n");
+    floatWav.printHeader();
 
-    // set encodings and write files
-    wav.set_encoding(WAV_encoding::unsigned_8_PCM);
-    wav.write("out_u8.wav");
+    // get access to the raw header data. Generally a bad idea.
+    // Messing with this without knowing what you're doing can
+    // result in a corrupted WAV file.
+    WAV_fmt_t floatWavHeader = floatWav.getRawHeader();
 
-    wav.set_encoding(WAV_encoding::signed_16_PCM);
-    wav.write("out_i16.wav");
+    // To get the WAV object's sample rate:
+    floatWav.getSampleRate();
 
-    wav.set_encoding(WAV_encoding::signed_24_PCM);
-    wav.write("out_i24.wav");
+    // To set the WAV ojects's sample rate:
+    floatWav.setSampleRate(44100);
 
-    wav.set_encoding(WAV_encoding::signed_32_PCM);
-    wav.write("out_i32.wav");
+    // setSampleRate only sets the header value. To stretch the WAV
+    // so that it sounds similar but with a different sample rate
+    // use stretchToSampleRate() (INCOMPLETE):
+    // floatWav.stretchToSampleRate(44100);
 
-    wav.set_encoding(WAV_encoding::float_32);
-    wav.write("out_f32.wav");
+    // To get the number of bytes an encoded sample will take:
+    floatWav.getSampleSize();
 
-    wav.set_encoding(WAV_encoding::float_64);
-    wav.write("out_f64.wav");
+    // Some WAV files hold extra information in the header in a field
+    // called extra params. To access this information:
+    floatWav.getExtraParams();
 
+    // ================================================================================================
+    // ================== ENCODINGS ==================
 
-    // get the total number of samples (from all channels)
-    int num_samples{0};
-    for (int i = 0; i < wav.get_num_channels(); i++)
-        num_samples += wav.channel(i).size();
+    // The supported encoding types are:
+    //   - Unsigned 8 bit PCM
+    //   - Signed 16 bit PCM
+    //   - Signed 24 bit PCM
+    //   - Signed 32 bit PCM
+    //   - 32 bit floating point
+    //   - 64 bit floating point
 
-    // make sure each channel has an equal number of samples
-    wav.reset_channel_lengths();
+    // To get the current objects encoding:
+    WAV_encoding encoding = floatWav.getEncoding();
 
-    // remove half of the samples
-    int samples_per_channel = wav.channel(0).size();
-    for (int i = 0; i < wav.get_num_channels(); i++)
+    // To get a list of supported encoding types and their
+    // respective enum values, use getAvailableEncodings():
+    printf("\nEncodings:\n");
+    for (auto encoding : floatWav.getAvailableEncodings())
+        printf("%s = %i\n", encoding.encoding_str, (int)encoding.encoding_type);
+
+    // Encodings can be set using setEncoding()
+    // This code writes a file using each of the available encoding:
+    for (auto encoding : floatWav.getAvailableEncodings())
     {
-        std::vector<float> &channel = wav.channel(i);
-        channel.erase(channel.begin(), channel.begin() + samples_per_channel / 2);
+        floatWav.setEncoding(encoding.encoding_type);
+        floatWav.write(std::string(encoding.encoding_str) + ".wav");
     }
 
-    // get a single sample (first sample in channel 0)
-    double sample = wav.channel(0)[0];
+    // ================================================================================================
+    // ================== CUE POINTS ==================
+    // If your WAV file has cue points they are accessible and editable
+    // using getCuePoints():
+    auto cues = floatWav.getCuePoints();
 
-    // set a single sample (first sample in channel 0)
-    wav.channel(0)[0] = 0.0f;
+    // Any cue points added to the object will be included in the file
+    // written to disk.
+    WAV<float>::cue_point newCuePoint;
+    newCuePoint.sample_offset = 0;
+    newCuePoint.label = "Beginning of file";
+    cues.push_back(newCuePoint);
 
-    // write the WAV file to disk
-    wav.write("sample_half.wav");
+    // ================================================================================================
+    // ================== MANIPULATING CHANNELS ==================
+    // The number of channels can be increased and decreased.
+    // Get the number of channels:
+    int numChannels = floatWav.getNumChannels();
 
-    // clear the wav file sample data
-    wav.clear_data();
+    // Set the number of channels:
+    // floatWav.setNumChannels(2);
 
-    wav.write("sample_empty.wav");
+    // Remove a channel:
+    // floatWav.removeChannel(0);
+
+    // Add a channel:
+    // floatWav.addChannel();
+
+    // The object can be converted to mono. This averages samples in each channel
+    // to create a single channel that still sounds the same:
+    // floatWav.convertToMono();
+
+    // To empty all samples from the object:
+    doubleWav.clearData();
+
+    // ================================================================================================
+    // ================== MANIPULATING SAMPLES ==================
+
+    // get a specific channel using the sampleAt function
+    static const int channel = 0;
+    static const int sampleIndex = 100;
+    float sample = floatWav.sampleAt(channel, sampleIndex);
+
+    // A good way to manipulate WAV objects is by using iterators
+    // Two types of iterators are supplied:
+    //   - Cross channel iterators
+    //   - Single channel iterators
+
+    // Cross channel iterators
+    WAV<float>::iterator iterBegin = floatWav.begin();
+    WAV<float>::iterator iterEnd = floatWav.end();
+
+    // Individual channels at each sample index can be accessed
+    // using the channel() method:
+    float leftChannelFirstSample = iterBegin->channel(0);
+    float rightChennelFirstSample = iterBegin->channel(1);
+
+    // Some of the usual iterator operations apply:
+    WAV<float> newWav;
+    newWav.insert(newWav.begin(), floatWav.begin(), floatWav.begin() + 1000);
+    newWav.erase(newWav.begin(), newWav.begin() + 980);
+    newWav.write("iterator.wav"); // this will have 20 audio samples
+
+    // print all samples using iterators:
+    printf("\nSamples inserted using iterators:\n");
+    for (auto iter : newWav)
+    {
+        for (int ch = 0; ch < floatWav.getNumChannels(); ch++)
+            printf("%s%f ", iter.channel(ch) < 0.0f ? "" : " ", iter.channel(ch));
+        printf("\n");
+    }
+
+    // Single channel iterators
+    WAV<float>::channelIterator leftIter = newWav.channelBegin(0);
+
+    printf("\nRight channel samples:\n");
+    for(auto rightIter = newWav.channelBegin(1); rightIter != newWav.channelEnd(1); rightIter++)
+    {
+        printf("%f ", *rightIter);
+    }
+    printf("\n");
 
     return 0;
 }

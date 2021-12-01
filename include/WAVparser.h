@@ -10,6 +10,8 @@
 
 #pragma once
 
+#define UNFINISHED_FUNCTION throw std::runtime_error("This function is not yet fully imlemented");
+
 // audio format codes - https://sites.google.com/site/musicgapi/technical-documents/wav-file-format
 // only pcm and float are addressed in code, so far...
 #define FORMAT_NONE 0x0000            // unknown
@@ -54,11 +56,13 @@ enum class WAV_encoding
     none
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Class for storing and manipulating WAV file data.
+ * Floating point types should be used for Sample_Type
  */
-template <class Sample_Type>
-class WAV_t
+template <class Sample_Type, int Max_Channels = 2>
+class WAV
 {
 public:
     struct cue_point
@@ -91,126 +95,170 @@ private:
     RIFF_chunk_data_t *m_fmt(RIFF_chunk_list_t &fmt);
 
     // write fmt and data sections into RIFF_t object
-    int write_fmt(RIFF_t &riff);
-    int write_data(RIFF_t &riff);
-    int write_cue(RIFF_t &riff);
+    int writeFmt(RIFF_t &riff);
+    int writeData(RIFF_t &riff);
+    int writeCue(RIFF_t &riff);
 
     // Load raw byte data from the RIFF_t object
-    void load_fmt(RIFF_t &riff);
-    void load_data(RIFF_t &riff);
-    void load_cue(RIFF_t &riff);
+    void loadFmt(RIFF_t &riff);
+    void loadData(RIFF_t &riff);
+    void loadCue(RIFF_t &riff);
 
     // load from riff
     template <typename T>
-    void load_sample_buffer_int(std::vector<uint8_t> &bytes);
+    void loadSampleBufferInt(std::vector<uint8_t> &bytes);
 
-    void load_sample_buffer_i24(std::vector<uint8_t> &bytes);
+    void loadSampleBufferi24(std::vector<uint8_t> &bytes);
 
     template <typename T>
-    void load_sample_buffer_float(std::vector<uint8_t> &bytes);
+    void loadSampleBufferFloat(std::vector<uint8_t> &bytes);
 
     // write to riff
     template <typename T>
-    void write_sample_buffer_int(std::vector<uint8_t> &bytes);
+    void writeSampleBufferInt(std::vector<uint8_t> &bytes);
 
-    void write_sample_buffer_i24(std::vector<uint8_t> &bytes);
+    void writeSampleBufferi24(std::vector<uint8_t> &bytes);
 
     template <typename T>
-    void write_sample_buffer_float(std::vector<uint8_t> &bytes);
+    void writeSampleBufferFloat(std::vector<uint8_t> &bytes);
 
     // update header information based on samples vector
-    void update_header();
+    void updateHeader();
 
     // generic mapping function
     template <typename From, typename To>
-    static To value_map(From value, From from_min, From from_max, To to_min, To to_max);
+    static To valueMap(From value, From from_min, From from_max, To to_min, To to_max);
 
-    std::vector<std::vector<Sample_Type>> m_samples;
+    class crossChannelSample
+    {
+    private:
+        Sample_Type m_channelSamples[Max_Channels]{};
+
+    public:
+        /**
+         * Get the sample at the given channel
+         * @param channel: channel to return value for
+         */
+        Sample_Type &channel(unsigned int channel)
+        {
+            if (channel >= Max_Channels)
+                throw std::out_of_range("Requested channel outside of range");
+            return m_channelSamples[channel];
+        }
+    };
+
+    std::vector<crossChannelSample> m_samples;
     WAV_fmt_t m_header;
     WAV_encoding m_encoding{WAV_encoding::none};
-
     std::vector<cue_point> m_cue_points;
 
 public:
-    WAV_t();
-
-    WAV_t(std::string filename);
+    WAV();
+    WAV(std::string filename);
 
     int write(std::string filepath);
 
     // =========== METHODS FOR HEADER INFORMATION ===========
 
-    uint16_t get_sample_rate() const;
+    WAV_fmt_t getRawHeader();
+    uint16_t getSampleRate() const;
+    void setSampleRate(uint16_t new_rate);
+    void stretchToSampleRate(uint16_t new_rate);
+    int getSampleSize() const;
+    std::vector<uint8_t> &getExtraParams();
+    void printHeader();
+    uint32_t calculateByteRate();
+    uint16_t calculateBlockAlign();
 
-    void set_sample_rate(uint16_t new_rate);
+    WAV_encoding getEncoding() const;
+    const std::vector<WAV_Encoding_String> &getAvailableEncodings() const;
+    void setEncoding(WAV_encoding new_encoding);
 
-    void convert_sample_rate(uint16_t new_rate);
-
-    int sample_size() const;
-
-    std::vector<uint8_t> &extra_params();
-
-    void print_header();
-
-    uint32_t calculate_byte_rate();
-
-    uint16_t calculate_block_align();
-
-    WAV_encoding get_encoding() const;
-
-    const std::vector<WAV_Encoding_String> &get_available_encodings() const;
-
-    void set_encoding(WAV_encoding new_encoding);
-
-    std::vector<WAV_t::cue_point> &cues();
+    std::vector<WAV::cue_point> &getCuePoints();
 
     // =========== METHODS FOR SAMPLE DATA ===========
+    uint16_t getNumChannels() const;
+    void setNumChannels(unsigned int newNumChannels);
+    void removeChannel(int i);
+    void addChannel();
 
-    uint16_t get_num_channels() const;
+    int getNumSamples();
+    void convertToMono();
+    void clearData();
 
-    void set_num_channels(int num_channels);
+    Sample_Type &sampleAt(unsigned int channel, unsigned int index);
 
-    void convert_to_mono();
+    class channelIterator : public std::vector<crossChannelSample>::iterator
+    {
+    private:
+        const unsigned int m_channel;
 
-    int get_num_samples();
+    public:
+        channelIterator(const typename std::vector<crossChannelSample>::iterator &iter, const unsigned int channel)
+            : std::vector<crossChannelSample>::iterator(iter), m_channel(channel)
+        {
+        }
 
-    std::vector<Sample_Type> &channel(int i);
+        Sample_Type &operator*()
+        {
+            return std::vector<crossChannelSample>::iterator::operator*(*this)[m_channel];
+        }
 
-    std::vector<Sample_Type> &add_channel();
+        Sample_Type &operator[](int i)
+        {
+            return std::vector<crossChannelSample>::iterator::operator[](i).channel(m_channel);
+        }
 
-    void remove_channel(int i);
+        bool operator==(const channelIterator &other)
+        {
+            return std::vector<crossChannelSample>::iterator::operator==(other) && (m_channel == other.m_channel);
+        }
 
-    void swap_channels(int a, int b);
+        bool operator!=(const channelIterator &other)
+        {
+            return std::vector<crossChannelSample>::iterator::operator!=(other) && (m_channel != other.m_channel);
+        }
+    };
 
-    void clear_data();
+    // ============= ITERATORS ==============
+    using iterator = typename std::vector<crossChannelSample>::iterator;
+    iterator begin() { return m_samples.begin(); }
+    iterator end() { return m_samples.end(); }
 
-    void reset_channel_lengths(Sample_Type fill = 0.0f);
+    channelIterator channelBegin(int channel) { return channelIterator(m_samples.begin(), channel); }
+    channelIterator channelEnd(int channel) { return channelIterator(m_samples.end(), channel); }
+
+    void insert(iterator into, iterator begin, iterator end);
+    void erase(iterator begin, iterator end);
+
+    // =========== GENERAL INFO ===========
+    bool isStereo();
+    bool isMono();
 };
-
-// IMPLEMENTATIONS ==========================================================================================================================
 
 // =========== PRIVATE METHODS ===========
 
-// quick access to riff data chunk
-template <class Sample_Type>
-RIFF_chunk_data_t *WAV_t<Sample_Type>::m_data(RIFF_chunk_list_t &riff)
+// quick access to riff data chunk //////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+RIFF_chunk_data_t *WAV<Sample_Type, Max_Channels>::m_data(RIFF_chunk_list_t &riff)
 {
     return dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("data"));
 }
 
-// quick access to riff fmt chunk
-template <class Sample_Type>
-RIFF_chunk_data_t *WAV_t<Sample_Type>::m_fmt(RIFF_chunk_list_t &riff)
+// quick access to riff fmt chunk ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+RIFF_chunk_data_t *WAV<Sample_Type, Max_Channels>::m_fmt(RIFF_chunk_list_t &riff)
 {
     return dynamic_cast<RIFF_chunk_data_t *>(riff.get_chunk_with_id("fmt "));
 }
 
-template <class Sample_Type>
-int WAV_t<Sample_Type>::write_fmt(RIFF_t &riff)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+int WAV<Sample_Type, Max_Channels>::writeFmt(RIFF_t &riff)
 {
     int bytes_written{0};
-    calculate_byte_rate();
-    calculate_block_align();
+    calculateByteRate();
+    calculateBlockAlign();
 
     // directly write all bytes to a vector
     const uint8_t *fmt_bytes = reinterpret_cast<const uint8_t *>(&m_header);
@@ -235,39 +283,38 @@ int WAV_t<Sample_Type>::write_fmt(RIFF_t &riff)
     return bytes_written;
 }
 
-template <class Sample_Type>
-int WAV_t<Sample_Type>::write_data(RIFF_t &riff)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+int WAV<Sample_Type, Max_Channels>::writeData(RIFF_t &riff)
 {
     if (m_samples.size() == 0)
         return 0;
-
-    reset_channel_lengths();
 
     int bytes_written{0};
 
     // reserve right amount of space for storing the data
     std::vector<uint8_t> bytes;
-    bytes.reserve(m_header.num_channels * m_samples[0].size());
+    bytes.reserve(m_header.num_channels * m_samples.size());
 
     switch (m_encoding)
     {
     case WAV_encoding::signed_16_PCM:
-        write_sample_buffer_int<int16_t>(bytes);
+        writeSampleBufferInt<int16_t>(bytes);
         break;
     case WAV_encoding::signed_24_PCM:
-        write_sample_buffer_i24(bytes);
+        writeSampleBufferi24(bytes);
         break;
     case WAV_encoding::signed_32_PCM:
-        write_sample_buffer_int<int32_t>(bytes);
+        writeSampleBufferInt<int32_t>(bytes);
         break;
     case WAV_encoding::unsigned_8_PCM:
-        write_sample_buffer_int<uint8_t>(bytes);
+        writeSampleBufferInt<uint8_t>(bytes);
         break;
     case WAV_encoding::float_32:
-        write_sample_buffer_float<float>(bytes);
+        writeSampleBufferFloat<float>(bytes);
         break;
     case WAV_encoding::float_64:
-        write_sample_buffer_float<double>(bytes);
+        writeSampleBufferFloat<double>(bytes);
         break;
     default:
         throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)m_encoding) + ")");
@@ -279,8 +326,9 @@ int WAV_t<Sample_Type>::write_data(RIFF_t &riff)
     return bytes_written;
 }
 
-template <class Sample_Type>
-int WAV_t<Sample_Type>::write_cue(RIFF_t &riff)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+int WAV<Sample_Type, Max_Channels>::writeCue(RIFF_t &riff)
 {
     RIFF_chunk_list_t label_chunk("adtl"); // holds an id and an ascii string for each cue point
     std::vector<uint8_t> cue_chunk_data;   // holds cue_point_t data for each cue point
@@ -315,8 +363,7 @@ int WAV_t<Sample_Type>::write_cue(RIFF_t &riff)
             label_data.push_back(reinterpret_cast<uint8_t *>(&starting_id)[i]);
 
         // label string to bytes
-        std::for_each(i.label.begin(), i.label.end(), [&label_data](auto c)
-                      { label_data.push_back(static_cast<uint8_t>(c)); });
+        std::for_each(i.label.begin(), i.label.end(), [&label_data](auto c) { label_data.push_back(static_cast<uint8_t>(c)); });
         label_data.push_back(0); // terminator
 
         label_chunk.get_subchunks().push_back(std::make_unique<RIFF_chunk_data_t>("labl", label_data)); // insert new labl chunks
@@ -332,8 +379,9 @@ int WAV_t<Sample_Type>::write_cue(RIFF_t &riff)
     return 0;
 }
 
-template <class Sample_Type>
-void WAV_t<Sample_Type>::load_fmt(RIFF_t &riff)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::loadFmt(RIFF_t &riff)
 {
     // WAV file should have a 'fmt ' chunk - throw if fmt is not present
     RIFF_chunk_data_t *fmt = m_fmt(riff.get_root_chunk());
@@ -341,6 +389,9 @@ void WAV_t<Sample_Type>::load_fmt(RIFF_t &riff)
         throw std::runtime_error("File does not have a valid 'fmt ' chunk.");
 
     memcpy(reinterpret_cast<uint8_t *>(&m_header), &fmt->get_data().front(), fmt->size());
+
+    if (m_header.num_channels > Max_Channels)
+        throw std::runtime_error("Input file's number of channels exceeds maximum allowed.");
 
     // load extra params if present
     if (fmt->get_data().size() > 16)
@@ -354,8 +405,9 @@ void WAV_t<Sample_Type>::load_fmt(RIFF_t &riff)
     }
 }
 
-template <class Sample_Type>
-void WAV_t<Sample_Type>::load_data(RIFF_t &riff)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::loadData(RIFF_t &riff)
 {
     // WAV file should have a 'data' chunk - throw if data is not present
     RIFF_chunk_data_t *data = m_data(riff.get_root_chunk());
@@ -363,14 +415,6 @@ void WAV_t<Sample_Type>::load_data(RIFF_t &riff)
         throw std::runtime_error("File does not have a valid 'data' chunk.");
 
     std::vector<uint8_t> &d = data->get_data();
-
-    // determine size for sample vector
-    // create channels
-    m_samples.insert(m_samples.begin(), m_header.num_channels, std::vector<Sample_Type>());
-    // reserve space for samples
-    int samples_per_channel{data->size() / m_header.num_channels};
-    for (auto i : m_samples)
-        i.reserve(samples_per_channel);
 
     // choose encoding type - none is the default
     m_encoding = WAV_encoding::none;
@@ -409,30 +453,31 @@ void WAV_t<Sample_Type>::load_data(RIFF_t &riff)
     switch (m_encoding)
     {
     case WAV_encoding::signed_16_PCM:
-        load_sample_buffer_int<int16_t>(d);
+        loadSampleBufferInt<int16_t>(d);
         break;
     case WAV_encoding::signed_24_PCM:
-        load_sample_buffer_i24(d);
+        loadSampleBufferi24(d);
         break;
     case WAV_encoding::signed_32_PCM:
-        load_sample_buffer_int<int32_t>(d);
+        loadSampleBufferInt<int32_t>(d);
         break;
     case WAV_encoding::unsigned_8_PCM:
-        load_sample_buffer_int<uint8_t>(d);
+        loadSampleBufferInt<uint8_t>(d);
         break;
     case WAV_encoding::float_32:
-        load_sample_buffer_float<float>(d);
+        loadSampleBufferFloat<float>(d);
         break;
     case WAV_encoding::float_64:
-        load_sample_buffer_float<double>(d);
+        loadSampleBufferFloat<double>(d);
         break;
     default:
         throw std::runtime_error("Unsupported audio encoding format. (" + std::to_string((int)m_encoding) + ")");
     }
 }
 
-template <class Sample_Type>
-void WAV_t<Sample_Type>::load_cue(RIFF_t &riff)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::loadCue(RIFF_t &riff)
 {
     std::unordered_map<uint32_t, std::string> labl_identifiers;
 
@@ -482,7 +527,7 @@ void WAV_t<Sample_Type>::load_cue(RIFF_t &riff)
             memcpy(&cue_point, &cue_v.front(), sizeof(cue_point));
             cue_v.erase(cue_v.begin(), cue_v.begin() + sizeof(cue_point));
 
-            WAV_t<Sample_Type>::cue_point point{
+            WAV<Sample_Type, Max_Channels>::cue_point point{
                 cue_point.sample_start,
                 labl_identifiers.find(cue_point.identifier) == labl_identifiers.end() ? std::to_string(cue_point.identifier) : labl_identifiers[cue_point.identifier]};
 
@@ -491,24 +536,28 @@ void WAV_t<Sample_Type>::load_cue(RIFF_t &riff)
     }
 }
 
-template <class Sample_Type>
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
 template <class T>
-void WAV_t<Sample_Type>::load_sample_buffer_int(std::vector<uint8_t> &bytes)
+void WAV<Sample_Type, Max_Channels>::loadSampleBufferInt(std::vector<uint8_t> &bytes)
 {
     T *buffer = reinterpret_cast<T *>(&bytes.front());
-    int channel_counter = 0;
     int total_samples = bytes.size() / sizeof(T);
 
     // assign each sample to a channel
     for (int i = 0; i < total_samples; i++)
     {
-        Sample_Type new_value = value_map<T, Sample_Type>(buffer[i], std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), -1.0, 1.0);
-        m_samples[channel_counter++ % m_header.num_channels].push_back(new_value);
+        if (i % getNumChannels() == 0)
+            m_samples.push_back({});
+
+        Sample_Type new_value = valueMap<T, Sample_Type>(buffer[i], std::numeric_limits<T>::min(), std::numeric_limits<T>::max() - 1, -1.0, 1.0);
+        channelBegin(i % getNumChannels())[i / getNumChannels()] = new_value;
     }
 }
 
-template <class Sample_Type>
-void WAV_t<Sample_Type>::load_sample_buffer_i24(std::vector<uint8_t> &bytes)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::loadSampleBufferi24(std::vector<uint8_t> &bytes)
 {
     uint8_t *buffer = reinterpret_cast<uint8_t *>(&bytes.front());
     int channel_counter = 0;
@@ -517,31 +566,41 @@ void WAV_t<Sample_Type>::load_sample_buffer_i24(std::vector<uint8_t> &bytes)
     // assign each sample to a channel
     for (int i = 0; i < total_samples; i += 3)
     {
+        if (channel_counter++ % getNumChannels() == 0)
+            m_samples.push_back({});
+
         int32_t smp = buffer[i] + (buffer[i + 1] << 8) + (buffer[i + 2] << 16);
 
         // 24i max:  0x7fffff
-        // 24i min: -0x800000
-        Sample_Type new_value = value_map<int32_t, Sample_Type>(smp, -0x800000, 0x7fffff, -1.0, 1.0);
-        m_samples[channel_counter++ % m_header.num_channels].push_back(new_value);
+        // 24i min: -0x800000 + 1 - center on 0
+        Sample_Type new_value = valueMap<int32_t, Sample_Type>(smp, -0x7fffff, 0x7fffff, -1.0, 1.0);
+        channelBegin(i % getNumChannels())[i / getNumChannels()] = new_value;
     }
 }
 
-template <class Sample_Type>
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
 template <class T>
-void WAV_t<Sample_Type>::load_sample_buffer_float(std::vector<uint8_t> &bytes)
+void WAV<Sample_Type, Max_Channels>::loadSampleBufferFloat(std::vector<uint8_t> &bytes)
 {
     T *buffer = reinterpret_cast<T *>(&bytes.front());
-    int channel_counter = 0;
     int total_samples = bytes.size() / sizeof(T);
 
     // assign each sample to a channel
     for (int i = 0; i < total_samples; i++)
-        m_samples[channel_counter++ % m_header.num_channels].push_back(static_cast<Sample_Type>(buffer[i]));
+    {
+        if (i % getNumChannels() == 0)
+            m_samples.push_back({});
+
+        Sample_Type new_value = valueMap<T, Sample_Type>(buffer[i], std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), -1.0, 1.0);
+        channelBegin(i % getNumChannels())[i / getNumChannels()] = new_value;
+    }
 }
 
-template <class Sample_Type>
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
 template <class From, class To>
-To WAV_t<Sample_Type>::value_map(From value, From from_min, From from_max, To to_min, To to_max)
+To WAV<Sample_Type, Max_Channels>::valueMap(From value, From from_min, From from_max, To to_min, To to_max)
 {
     Sample_Type d_value = static_cast<Sample_Type>(value);
     Sample_Type d_from_min = static_cast<Sample_Type>(from_min);
@@ -558,19 +617,22 @@ To WAV_t<Sample_Type>::value_map(From value, From from_min, From from_max, To to
     return static_cast<To>((d_value - d_from_min) * (d_to_max - d_to_min) / (d_from_max - d_from_min) + d_to_min);
 }
 
-template <class Sample_Type>
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
 template <class T>
-void WAV_t<Sample_Type>::write_sample_buffer_int(std::vector<uint8_t> &bytes)
+void WAV<Sample_Type, Max_Channels>::writeSampleBufferInt(std::vector<uint8_t> &bytes)
 {
-    // reserve some space
-    int total_samples = 0;
-    for (auto i : m_samples)
-        total_samples += i.size();
+    int total_samples = getNumSamples() * getNumChannels();
     bytes.reserve(total_samples * sizeof(T));
 
     for (int i = 0; i < total_samples; i++)
     {
-        T smp = value_map<Sample_Type, T>((m_samples[i % m_header.num_channels][i / m_header.num_channels]), -1.0, 1.0, std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+        T smp = valueMap<Sample_Type, T>(
+            channelBegin(i % getNumChannels())[i / getNumChannels()],
+            -1.0,
+            1.0,
+            std::numeric_limits<T>::min(),
+            std::numeric_limits<T>::max());
 
         // push individual bytes from smp into bytes
         for (long unsigned int j = 0; j < sizeof(T); j++)
@@ -578,18 +640,21 @@ void WAV_t<Sample_Type>::write_sample_buffer_int(std::vector<uint8_t> &bytes)
     }
 }
 
-template <class Sample_Type>
-void WAV_t<Sample_Type>::write_sample_buffer_i24(std::vector<uint8_t> &bytes)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::writeSampleBufferi24(std::vector<uint8_t> &bytes)
 {
-    // reserve some space
-    int total_samples = 0;
-    for (auto i : m_samples)
-        total_samples += i.size();
-    bytes.reserve(total_samples * 3);
+    int total_samples = getNumSamples() * getNumChannels();
+    bytes.reserve(total_samples * 3); // 3 bytes per 24 bit sample
 
     for (int i = 0; i < total_samples; i++)
     {
-        int32_t smp = value_map<Sample_Type, int32_t>(m_samples[i % m_header.num_channels][i / m_header.num_channels], -1.0, 1.0, -0x800000, 0x7fffff);
+        int32_t smp = valueMap<Sample_Type, int32_t>(
+            channelBegin(i % getNumChannels())[i / getNumChannels()],
+            -1.0,
+            1.0,
+            -0x7fffff,
+            0x7fffff);
 
         // push individual bytes from smp into bytes
         for (int j = 0; j < 3; j++)
@@ -597,19 +662,17 @@ void WAV_t<Sample_Type>::write_sample_buffer_i24(std::vector<uint8_t> &bytes)
     }
 }
 
-template <class Sample_Type>
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
 template <class T>
-void WAV_t<Sample_Type>::write_sample_buffer_float(std::vector<uint8_t> &bytes)
+void WAV<Sample_Type, Max_Channels>::writeSampleBufferFloat(std::vector<uint8_t> &bytes)
 {
-    // reserve some space
-    int total_samples = 0;
-    for (auto i : m_samples)
-        total_samples += i.size();
+    int total_samples = getNumSamples() * getNumChannels();
     bytes.reserve(total_samples * sizeof(T));
 
     for (int i = 0; i < total_samples; i++)
     {
-        T smp = static_cast<T>(m_samples[i % m_header.num_channels][i / m_header.num_channels]);
+        T smp = static_cast<T>(channelBegin(i % getNumChannels())[i / getNumChannels()]);
 
         // push individual bytes from smp into bytes
         for (long unsigned int j = 0; j < sizeof(T); j++)
@@ -617,10 +680,10 @@ void WAV_t<Sample_Type>::write_sample_buffer_float(std::vector<uint8_t> &bytes)
     }
 }
 
-template <class Sample_Type>
-void WAV_t<Sample_Type>::update_header()
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::updateHeader()
 {
-    m_header.num_channels = m_samples.size();
     switch (m_encoding)
     {
     case WAV_encoding::signed_16_PCM:
@@ -650,52 +713,55 @@ void WAV_t<Sample_Type>::update_header()
     case WAV_encoding::none:
         break;
     }
-    calculate_block_align();
-    calculate_byte_rate();
+    calculateBlockAlign();
+    calculateByteRate();
 }
 
 // =========== PUBLIC METHODS ===========
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Construct an empty WAV file. Contains no samples and 
  * default header data.
  */
-template <class Sample_Type>
-WAV_t<Sample_Type>::WAV_t() : m_samples(2, std::vector<Sample_Type>())
+template <class Sample_Type, int Max_Channels>
+WAV<Sample_Type, Max_Channels>::WAV()
 {
     m_encoding = WAV_encoding::signed_32_PCM;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Construct a WAV_t object from a WAV file.
+ * Construct a WAV object from a WAV file.
  * @param filename The file to parse.
  */
-template <class Sample_Type>
-WAV_t<Sample_Type>::WAV_t(std::string filename)
+template <class Sample_Type, int Max_Channels>
+WAV<Sample_Type, Max_Channels>::WAV(std::string filename)
 {
     RIFF_t riff(filename);
 
     if (strcmp(riff.get_root_chunk().get_form_type(), "WAVE") != 0)
         throw std::runtime_error("File is not a valid WAVE file.");
 
-    load_fmt(riff);
-    load_data(riff);
-    load_cue(riff);
+    loadFmt(riff);
+    loadData(riff);
+    loadCue(riff);
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Write WAV_t data to the disk at the specified filepath. 
- * @return Number of bytes written
+ * Write WAV data to the disk at the specified filepath. 
+ * @return Number of bytes written to disk.
  */
-template <class Sample_Type>
-int WAV_t<Sample_Type>::write(std::string filepath)
+template <class Sample_Type, int Max_Channels>
+int WAV<Sample_Type, Max_Channels>::write(std::string filepath)
 {
-    update_header();
+    updateHeader();
     RIFF_t riff;
     riff.get_root_chunk().set_form_type("WAVE");
-    write_fmt(riff);
-    write_data(riff);
-    write_cue(riff);
+    writeFmt(riff);
+    writeData(riff);
+    writeCue(riff);
     riff.set_filepath(filepath);
 
     return riff.write();
@@ -703,40 +769,60 @@ int WAV_t<Sample_Type>::write(std::string filepath)
 
 // =========== METHODS FOR HEADER INFORMATION ===========
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * Get the raw header struct. Generally, don't use this. Access and modify functions 
+ * will ensure that information is entered here correctly. Bad info here = bad WAV file.
+ * @return Raw header struct.
+ */
+template <class Sample_Type, int Max_Channels>
+WAV_fmt_t WAV<Sample_Type, Max_Channels>::getRawHeader()
+{
+    return m_header;
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Get the current sample rate of the WAV data.
+ * @return The sample rate.
  */
-template <class Sample_Type>
-uint16_t WAV_t<Sample_Type>::get_sample_rate() const
+template <class Sample_Type, int Max_Channels>
+uint16_t WAV<Sample_Type, Max_Channels>::getSampleRate() const
 {
     return m_header.sample_rate;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Set a new sample rate for the WAV data.
+ * Set a new sample rate for the WAV data. Does not stretch the WAV data. 
+ * To stretch the file while changing the sample rate, use stretchToSampleRate.
  * @param new_rate The new sample rate.
+ * @see stretchToSampleRate
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::set_sample_rate(uint16_t new_rate)
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::setSampleRate(uint16_t new_rate)
 {
     m_header.sample_rate = new_rate;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Convert sample rate without affecting audio (too  much).
+ * Convert sample rate without affecting audio (too  much). Attempts to stretch the 
+ * original sample to fit the new sample rate.
  * @param new_rate The new sample rate.
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::convert_sample_rate(uint16_t new_rate)
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::stretchToSampleRate(uint16_t new_rate)
 {
-    // TODO
+    UNFINISHED_FUNCTION
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Get the size in bytes of a sample when written.
+ * Get the size in bytes of an encoded sample.
+ * @return Size of a single encoded sample
  */
-template <class Sample_Type>
-int WAV_t<Sample_Type>::sample_size() const
+template <class Sample_Type, int Max_Channels>
+int WAV<Sample_Type, Max_Channels>::getSampleSize() const
 {
     switch (m_encoding)
     {
@@ -757,28 +843,31 @@ int WAV_t<Sample_Type>::sample_size() const
     };
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Get the vector containing byte data for extra parameters. 
- * Extra parameters are not parsed by the object.
+ * Extra parameters are not parsed.
+ * @return Reference to the extra parameter data.
  */
-template <class Sample_Type>
-std::vector<uint8_t> &WAV_t<Sample_Type>::extra_params()
+template <class Sample_Type, int Max_Channels>
+std::vector<uint8_t> &WAV<Sample_Type, Max_Channels>::getExtraParams()
 {
     return m_header.extra_params;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Quickly print header information
+ * Quickly print header information.
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::print_header()
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::printHeader()
 {
-    printf("audio format: %d\n", m_header.audio_format);
-    printf("num channels: %d\n", m_header.num_channels);
-    printf("sample rate %d\n", m_header.sample_rate);
-    printf("byte rate: %d\n", m_header.byte_rate);
-    printf("block align %d\n", m_header.block_align);
-    printf("bits per sample %d\n", m_header.bits_per_sample);
+    printf("audio format:      %d\n", m_header.audio_format);
+    printf("num channels:      %d\n", m_header.num_channels);
+    printf("sample rate        %d\n", m_header.sample_rate);
+    printf("byte rate:         %d\n", m_header.byte_rate);
+    printf("block align        %d\n", m_header.block_align);
+    printf("bits per sample    %d\n", m_header.bits_per_sample);
 
     if (m_header.extra_params_size > 0)
     {
@@ -789,46 +878,54 @@ void WAV_t<Sample_Type>::print_header()
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Helper function to set header byte rate. Generally only used internally but can be useful to do 
- * correct calculations when changing header information manually.
+ * correct calculations when changing header information manually. This is called automatically 
+ * when writing to a file.
  * @return The new calculated byte rate.
  */
-template <class Sample_Type>
-uint32_t WAV_t<Sample_Type>::calculate_byte_rate()
+template <class Sample_Type, int Max_Channels>
+uint32_t WAV<Sample_Type, Max_Channels>::calculateByteRate()
 {
-    m_header.byte_rate = m_header.sample_rate * m_header.num_channels * sample_size();
+    m_header.byte_rate = getSampleRate() * getNumChannels() * getSampleSize();
     return m_header.byte_rate;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Helper function to set header block align. Generally only used internally but can be useful to do 
- * correct calculations when changing header information manually.
+ * correct calculations when changing header information manually. This is called automatically 
+ * when writing to a file.
  * @return The new calculated block align.
  */
-template <class Sample_Type>
-uint16_t WAV_t<Sample_Type>::calculate_block_align()
+template <class Sample_Type, int Max_Channels>
+uint16_t WAV<Sample_Type, Max_Channels>::calculateBlockAlign()
 {
-    m_header.block_align = m_header.num_channels * sample_size();
+    m_header.block_align = getNumChannels() * getSampleSize();
     return m_header.block_align;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Get the current encoding type of the WAV data.
+ * @return Current WAV_encoding enum.
  */
-template <class Sample_Type>
-WAV_encoding WAV_t<Sample_Type>::get_encoding() const
+template <class Sample_Type, int Max_Channels>
+WAV_encoding WAV<Sample_Type, Max_Channels>::getEncoding() const
 {
     return m_encoding;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Get a list of the operational WAV encodings.
+ * @return A list with const char * representation of the encoding as well as the WAV_encoding enum.
  */
-template <class Sample_Type>
-const std::vector<typename WAV_t<Sample_Type>::WAV_Encoding_String> &WAV_t<Sample_Type>::get_available_encodings() const
+template <class Sample_Type, int Max_Channels>
+const std::vector<typename WAV<Sample_Type, Max_Channels>::WAV_Encoding_String> &WAV<Sample_Type, Max_Channels>::getAvailableEncodings() const
 {
-    static const std::vector<WAV_t<Sample_Type>::WAV_Encoding_String> available_encodings = {
+    static const std::vector<WAV<Sample_Type, Max_Channels>::WAV_Encoding_String> available_encodings = {
         {"16-bit PCM", WAV_encoding::signed_16_PCM},
         {"24-bit PCM", WAV_encoding::signed_24_PCM},
         {"32-bit PCM", WAV_encoding::signed_32_PCM},
@@ -840,152 +937,160 @@ const std::vector<typename WAV_t<Sample_Type>::WAV_Encoding_String> &WAV_t<Sampl
     return available_encodings;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Set a new encoding type for the WAV data
  * @param new_encoding The encoding type to use during the next write.
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::set_encoding(WAV_encoding new_encoding)
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::setEncoding(WAV_encoding new_encoding)
 {
     m_encoding = new_encoding;
-    update_header();
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Get the list of cue points.
  * @return Reference to list of cue points.
  */
-template <class Sample_Type>
-std::vector<typename WAV_t<Sample_Type>::cue_point> &WAV_t<Sample_Type>::cues()
+template <class Sample_Type, int Max_Channels>
+std::vector<typename WAV<Sample_Type, Max_Channels>::cue_point> &WAV<Sample_Type, Max_Channels>::getCuePoints()
 {
     return m_cue_points;
 }
 
 // =========== METHODS FOR SAMPLE DATA ===========
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Get the current number of audio channels.
+ * @return The number of audio channels.
  */
-template <class Sample_Type>
-uint16_t WAV_t<Sample_Type>::get_num_channels() const
+template <class Sample_Type, int Max_Channels>
+uint16_t WAV<Sample_Type, Max_Channels>::getNumChannels() const
 {
-    return m_samples.size();
+    return m_header.num_channels;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Set the number of channels
- * If the new number of channels is smaller than the current number, channels will be deleted.
- * If it is greater than the current number, new channels initialized to zero will be created.
+ * Set the current number of audio channels.
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::set_num_channels(int num_channels)
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::setNumChannels(unsigned int newNumChannels)
 {
-    if (get_num_channels() == num_channels)
-        return;
-
-    while (get_num_channels() != num_channels)
-    {
-        if (get_num_channels() > num_channels)
-            m_samples.pop_back();
-        else
-            m_samples.emplace_back(get_num_samples(), 0.0f);
-    }
+    UNFINISHED_FUNCTION
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Convert entire file to mono. Averages all channel samples into channel 0
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::convert_to_mono()
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::convertToMono()
 {
-    reset_channel_lengths();
-    for (int i = 0; i < get_num_samples(); i++)
-    {
-        Sample_Type sum{0.0f};
-        std::for_each(m_samples.begin(), m_samples.end(), [i, &sum](auto a)
-                      { sum += a[i]; });
-        channel(0)[i] = sum / get_num_channels();
-    }
+    UNFINISHED_FUNCTION
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Get the current number of samples in the sample buffer
+ * Get the current number of samples in the sample buffer.
+ * @return The number of samples in a single audio channel.
  */
-template <class Sample_Type>
-int WAV_t<Sample_Type>::get_num_samples()
+template <class Sample_Type, int Max_Channels>
+int WAV<Sample_Type, Max_Channels>::getNumSamples()
 {
-    if (get_num_channels() == 0)
+    if (getNumChannels() == 0)
         return 0;
-    return channel(0).size();
+    return m_samples.size();
 }
 
-/**
- * Get channel data.
- * @param i The channel number to grab
- */
-template <class Sample_Type>
-std::vector<Sample_Type> &WAV_t<Sample_Type>::channel(int i)
-{
-    return m_samples[i];
-}
-
-/**
- * Add an audio channel.
- * @returns Reference to the newly created audio channel
- */
-template <class Sample_Type>
-std::vector<Sample_Type> &WAV_t<Sample_Type>::add_channel()
-{
-    m_samples.emplace_back(get_num_samples(), 0.0f);
-    m_header.num_channels++;
-    return m_samples.back();
-}
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Remove an audio channel.
- * @param i The index of the channel to remove
+ * @param i The index of the channel to remove.
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::remove_channel(int i)
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::removeChannel(int i)
 {
-    m_samples.erase(m_samples.begin() + i);
-    m_header.num_channels--;
+    UNFINISHED_FUNCTION
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Swap two audio channels.
- * @param a First channel to swap.
- * @param b Second channel to swap.
+ * Add an audio channel.
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::swap_channels(int a, int b)
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::addChannel()
 {
-    std::swap(m_samples[a], m_samples[b]);
+    UNFINISHED_FUNCTION
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Clear all sample data from the file.
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::clear_data()
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::clearData()
 {
-    m_samples = std::vector<std::vector<Sample_Type>>(m_header.num_channels, std::vector<Sample_Type>());
+    m_samples.clear();
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * Set the length of all channels to the length of the longest channel.
- * @param fill The value to append to short channels.
+ * Get the sample at the specified channel and index
+ * @return Reference to the requested sample.
  */
-template <class Sample_Type>
-void WAV_t<Sample_Type>::reset_channel_lengths(Sample_Type fill)
+template <class Sample_Type, int Max_Channels>
+Sample_Type &WAV<Sample_Type, Max_Channels>::sampleAt(unsigned int channel, unsigned int index)
 {
-    // find the length of the longest sample vector
-    int len{0};
-    for (auto i : m_samples)
-        len = std::max(static_cast<int>(i.size()), len);
+    return channelBegin(channel)[index];
+}
 
-    // fill the end of each sample vector
-    for (auto i : m_samples)
-        if (i.size() < static_cast<long unsigned int>(len))
-            i.insert(i.end(), fill, len - i.size());
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * Is the current wave file stereo?
+ * @return True or false.
+ */
+template <class Sample_Type, int Max_Channels>
+bool WAV<Sample_Type, Max_Channels>::isStereo()
+{
+    m_header.num_channels == 2;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * Is the current WAV file mono?
+ * @returns True or false.
+ */
+template <class Sample_Type, int Max_Channels>
+bool WAV<Sample_Type, Max_Channels>::isMono()
+{
+    return m_header.num_channels == 1;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * Insert samples from one WAV object into this one. Header information is not checked. 
+ * This could have some weird effects.
+ * @param into Where to insert samples. This should be an iterator from calling object.
+ * @param begin The first sample to be inserted.
+ * @param end The last sample to be inserted.
+ */
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::insert(WAV<Sample_Type, Max_Channels>::iterator into, WAV<Sample_Type, Max_Channels>::iterator begin, WAV<Sample_Type, Max_Channels>::iterator end)
+{
+    m_samples.insert(into, begin, end);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * Insert samples from the WAV object
+ * @param begin The first sample to be erased.
+ * @param end The last sample to be erased.
+ */
+template <class Sample_Type, int Max_Channels>
+void WAV<Sample_Type, Max_Channels>::erase(WAV<Sample_Type, Max_Channels>::iterator begin, WAV<Sample_Type, Max_Channels>::iterator end)
+{
+    m_samples.erase(begin, end);
 }
