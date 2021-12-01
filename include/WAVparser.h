@@ -201,22 +201,26 @@ public:
 
         Sample_Type &operator*()
         {
-            return std::vector<crossChannelSample>::iterator::operator*(*this)[m_channel];
+            // return std::vector<crossChannelSample>::iterator::operator*(*this)[m_channel];
+            UNFINISHED_FUNCTION
         }
 
         Sample_Type &operator[](int i)
         {
-            return std::vector<crossChannelSample>::iterator::operator[](i).channel(m_channel);
+            // return std::vector<crossChannelSample>::iterator::operator[](i).channel(m_channel);
+            UNFINISHED_FUNCTION
         }
 
         bool operator==(const channelIterator &other)
         {
-            return std::vector<crossChannelSample>::iterator::operator==(other) && (m_channel == other.m_channel);
+            // return std::vector<crossChannelSample>::iterator::operator==(other) && (m_channel == other.m_channel);
+            UNFINISHED_FUNCTION
         }
 
         bool operator!=(const channelIterator &other)
         {
-            return std::vector<crossChannelSample>::iterator::operator!=(other) && (m_channel != other.m_channel);
+            // return std::vector<crossChannelSample>::iterator::operator!=(other) && (m_channel != other.m_channel);
+            UNFINISHED_FUNCTION
         }
     };
 
