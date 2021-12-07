@@ -191,9 +191,8 @@ public:
     class channelIterator : public std::vector<crossChannelSample>::iterator
     {
     private:
-        const unsigned int m_channel;
-
     public:
+        const unsigned int m_channel;
         channelIterator(const typename std::vector<crossChannelSample>::iterator &iter, const unsigned int channel)
             : std::vector<crossChannelSample>::iterator(iter), m_channel(channel)
         {
@@ -202,25 +201,27 @@ public:
         Sample_Type &operator*()
         {
             // return std::vector<crossChannelSample>::iterator::operator*(*this)[m_channel];
-            UNFINISHED_FUNCTION
+            // UNFINISHED_FUNCTION
+            return std::vector<crossChannelSample>::iterator::operator*().channel(m_channel);
         }
 
         Sample_Type &operator[](int i)
         {
             // return std::vector<crossChannelSample>::iterator::operator[](i).channel(m_channel);
-            UNFINISHED_FUNCTION
+            // UNFINISHED_FUNCTION
+            return std::vector<crossChannelSample>::iterator::operator[](i).channel(m_channel);
         }
 
         bool operator==(const channelIterator &other)
         {
-            // return std::vector<crossChannelSample>::iterator::operator==(other) && (m_channel == other.m_channel);
-            UNFINISHED_FUNCTION
+            bool vecIter = other == *this;
+            bool chnIter = m_channel == other.m_channel;
+            return vecIter && chnIter;
         }
 
         bool operator!=(const channelIterator &other)
         {
-            // return std::vector<crossChannelSample>::iterator::operator!=(other) && (m_channel != other.m_channel);
-            UNFINISHED_FUNCTION
+            return !operator==(other);
         }
     };
 
@@ -983,7 +984,12 @@ uint16_t WAV<Sample_Type, Max_Channels>::getNumChannels() const
 template <class Sample_Type, int Max_Channels>
 void WAV<Sample_Type, Max_Channels>::setNumChannels(unsigned int newNumChannels)
 {
-    UNFINISHED_FUNCTION
+    // UNFINISHED_FUNCTION
+    if(newNumChannels > Max_Channels)
+        throw std::runtime_error("newNumChannels exceeds the maximum number of channels allowed.");
+
+    while(getNumChannels() != newNumChannels)
+        getNumChannels() > newNumChannels ? removeChannel(getNumChannels() - 1) : addChannel();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1017,7 +1023,16 @@ int WAV<Sample_Type, Max_Channels>::getNumSamples()
 template <class Sample_Type, int Max_Channels>
 void WAV<Sample_Type, Max_Channels>::removeChannel(int i)
 {
-    UNFINISHED_FUNCTION
+    // UNFINISHED_FUNCTION
+    if(getNumChannels() == 1)
+        throw std::runtime_error("Must have at least one audio channel.");
+    
+    std::for_each(begin(), end(), [i, this](auto a) {
+        for(int j = i; j < getNumChannels() - 1; j++)
+            a.channel(j) = a.channel(j+1);
+    });
+
+    m_header.num_channels--;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1027,7 +1042,13 @@ void WAV<Sample_Type, Max_Channels>::removeChannel(int i)
 template <class Sample_Type, int Max_Channels>
 void WAV<Sample_Type, Max_Channels>::addChannel()
 {
-    UNFINISHED_FUNCTION
+    // UNFINISHED_FUNCTION
+    if(getNumChannels() == Max_Channels)
+        throw std::runtime_error("Adding a channel will exceed the maximum number of channels allowed.");
+    m_header.num_channels++;
+    int chan = getNumChannels() - 1;
+    for(auto i = channelBegin(chan); i != channelEnd(chan); i++)
+        *i = 0.0f;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

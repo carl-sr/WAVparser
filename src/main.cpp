@@ -89,14 +89,20 @@ int main()
     // Get the number of channels:
     int numChannels = floatWav.getNumChannels();
 
-    // Set the number of channels:
-    // floatWav.setNumChannels(2);
-
+    printf("\nBefore channel operations numChannels: %i\n", doubleWav.getNumChannels());
     // Remove a channel:
-    // floatWav.removeChannel(0);
+    doubleWav.removeChannel(0);
+    printf("After removing a channel numChannels: %i\n", doubleWav.getNumChannels());
 
+    // Set the number of channels:
+    floatWav.setNumChannels(2);
+    printf("After setting numChannels to 2 numChannels: %i\n", doubleWav.getNumChannels());
+
+    // Added channels are initialized to zero
     // Add a channel:
-    // floatWav.addChannel();
+    doubleWav.addChannel();
+    printf("After adding a channel numChannels: %i\n", doubleWav.getNumChannels());
+
 
     // The object can be converted to mono. This averages samples in each channel
     // to create a single channel that still sounds the same:
@@ -147,9 +153,8 @@ int main()
 
     printf("\nRight channel samples:\n");
     for(auto rightIter = newWav.channelBegin(1); rightIter != newWav.channelEnd(1); rightIter++)
-    {
-        printf("%f ", *rightIter);
-    }
+        printf("%f\n", *rightIter);
+
     printf("\n");
 
     return 0;
